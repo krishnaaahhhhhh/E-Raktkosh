@@ -102,6 +102,9 @@ function getInitialRouteMode(): AppViewMode {
     const path = (window.location.pathname || '').toLowerCase();
     const hash = (window.location.hash || '').toLowerCase();
 
+    if (path.includes('/reception') || hash.includes('reception') || hash.includes('frontdesk')) {
+      return 'reception';
+    }
     if (path.includes('/hospital') || hash.includes('hospital') || hash.includes('tv_command')) {
       return 'hospital';
     }
@@ -145,6 +148,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const targetRoute =
         canonicalMode === 'landing' ? '/'
         : canonicalMode === 'planned_admission' ? '/planned-admission'
+        : canonicalMode === 'reception' ? '/reception'
         : canonicalMode === 'patient' ? '/patient'
         : canonicalMode === 'hospital' ? '/hospital'
         : canonicalMode === 'coordinate' ? '/coordinate'

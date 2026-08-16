@@ -268,6 +268,7 @@ export type AppViewMode =
   | 'landing'
   | 'patient'
   | 'planned_admission'
+  | 'reception'
   | 'hospital'
   | 'coordinate'
   | 'paramedic'

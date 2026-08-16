@@ -601,6 +601,53 @@ export const LandingPage: React.FC = () => {
             </BorderGlow>
 
           </div>
+
+          {/* Dedicated Hospital Reception & Front-Desk Triage Command Launcher */}
+          <div className="pt-4">
+            <div
+              onClick={() => {
+                playConfirmChime();
+                setMode('reception');
+              }}
+              className="rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 shadow-2xl hover:border-red-500/50 transition-all cursor-pointer group flex flex-col md:flex-row items-center justify-between gap-6"
+            >
+              <div className="flex items-center gap-4 text-left">
+                <div className="w-14 h-14 rounded-2xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Stethoscope className="w-7 h-7" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-red-400 bg-red-600/20 px-2.5 py-0.5 rounded-full border border-red-500/30">
+                      ER Staff &amp; Reception Desk
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">/reception</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    Hospital Reception &amp; Front-Desk Triage Dashboard
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
+                    Track real-time incoming arrival times, ₹500 pre-deposit tokens, doctor rosters with shift timings, live vacant ICU &amp; NICU beds, ambulance fleet readiness, and Gate stretcher routing.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playConfirmChime();
+                    setMode('reception');
+                  }}
+                  className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                >
+                  <span>Launch Reception Portal</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
