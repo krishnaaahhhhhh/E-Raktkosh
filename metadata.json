@@ -1,0 +1,7 @@
+{
+  "name": "Prathmikta - Emergency Triage & ER Command Center",
+  "description": "Intelligent pre-hospital triage, split-screen citizen emergency PWA, and real-time hospital wall-mounted TV command center with WebSocket sync.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
