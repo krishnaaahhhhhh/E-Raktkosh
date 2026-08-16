@@ -267,6 +267,7 @@ export interface DiseaseCondition {
 export type AppViewMode =
   | 'landing'
   | 'patient'
+  | 'planned_admission'
   | 'hospital'
   | 'coordinate'
   | 'paramedic'

@@ -364,9 +364,9 @@ export const LandingPage: React.FC = () => {
               colors={['#3b82f6', '#0284c7', '#2563eb']}
               onClick={() => {
                 playTactileClick();
-                setMode('hospital');
+                setMode('planned_admission');
               }}
-              className="h-full transform hover:-translate-y-1.5 transition-all shadow-md hover:shadow-xl"
+              className="h-full transform hover:-translate-y-1.5 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
               <div className="p-6 bg-white flex flex-col justify-between h-full space-y-4">
                 <div className="space-y-4">
@@ -421,7 +421,7 @@ export const LandingPage: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
-                      setMode('hospital');
+                      setMode('planned_admission');
                     }}
                     className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
