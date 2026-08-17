@@ -43,7 +43,8 @@ export const ParamedicAmbulanceApp: React.FC = () => {
     targetDepartment,
     targetFloorId,
     dispatchInboundEmergency,
-    activeCitizenDispatch
+    activeCitizenDispatch,
+    emitAmbulanceTelemetry
   } = usePrathmikta();
 
   const [ambulanceId] = useState('AMB-DL-108-442');
@@ -59,6 +60,16 @@ export const ParamedicAmbulanceApp: React.FC = () => {
     playTactileClick();
     try {
       await dispatchInboundEmergency();
+      emitAmbulanceTelemetry({
+        ambulanceId,
+        paramedicName,
+        vitals,
+        ecgStatus,
+        ivAccess,
+        oxygenLpm,
+        hospitalId: activeHospital.id,
+        timestamp: new Date().toISOString()
+      });
       setIsPreAlertTransmitted(true);
       playConfirmChime();
     } finally {

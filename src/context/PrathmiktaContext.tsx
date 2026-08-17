@@ -27,6 +27,23 @@ interface PrathmiktaContextType {
   setActiveHospitalId: (id: string) => void;
   activeHospital: HospitalFacility;
   isConnected: boolean;
+  socket: Socket | null;
+  emitSocketEvent: (event: string, data?: any) => void;
+  
+  // Realtime live streams & lists from Socket.io
+  liveTokens: any[];
+  livePlannedAdmissions: any[];
+  liveFacilities: any[];
+  liveTelemetryLogs: any[];
+  latestBroadcast: { type: string; payload: any; timestamp: string } | null;
+
+  // Realtime Socket Emission Actions
+  emitTokenCreate: (tokenData: any) => Promise<void>;
+  emitAdmissionBooking: (bookingData: any) => Promise<void>;
+  emitPartnerFacilityRegister: (facilityData: any) => Promise<void>;
+  emitBedSync: (bedData: any) => Promise<void>;
+  emitTelemetryLog: (logData: any) => Promise<void>;
+  emitAmbulanceTelemetry: (telemetryData: any) => void;
   
   // Location & Disease Intake Wizard
   selectedState: string;
@@ -102,10 +119,44 @@ function getInitialRouteMode(): AppViewMode {
     const path = (window.location.pathname || '').toLowerCase();
     const hash = (window.location.hash || '').toLowerCase();
 
-    if (path.includes('/reception') || hash.includes('reception') || hash.includes('frontdesk')) {
-      return 'reception';
+    // /a ambulance route
+    if (
+      path === '/a' ||
+      path.startsWith('/a/') ||
+      path.startsWith('/a?') ||
+      path.includes('/ambulance') ||
+      path.includes('/paramedic') ||
+      hash === '#/a' ||
+      hash === '#a' ||
+      hash.startsWith('#/a?') ||
+      hash.includes('ambulance') ||
+      hash.includes('paramedic')
+    ) {
+      return 'ambulance';
     }
-    if (path.includes('/hospital') || hash.includes('hospital') || hash.includes('tv_command')) {
+
+    // /b blood bank route
+    if (
+      path === '/b' ||
+      path.startsWith('/b/') ||
+      path.startsWith('/b?') ||
+      path.includes('/bloodbank') ||
+      path.includes('/blood-bank') ||
+      path.includes('/blood') ||
+      hash === '#/b' ||
+      hash === '#b' ||
+      hash.startsWith('#/b?') ||
+      hash.includes('bloodbank') ||
+      hash.includes('blood-bank') ||
+      hash.includes('blood')
+    ) {
+      return 'bloodbank';
+    }
+
+    if (path.includes('/hb') || path.includes('/partner') || path.includes('/facility') || hash.includes('hb') || hash.includes('partner')) {
+      return 'partner';
+    }
+    if (path === '/h' || path.startsWith('/h/') || path.startsWith('/h?') || hash === '#/h' || hash === '#h' || hash.startsWith('#/h?') || path.includes('/reception') || hash.includes('reception') || path.includes('/hospital') || hash.includes('hospital') || hash.includes('tv_command') || hash.includes('frontdesk')) {
       return 'hospital';
     }
     if (path.includes('/coordinate') || hash.includes('coordinate') || hash.includes('regional_deoc') || hash.includes('admin')) {
@@ -116,9 +167,6 @@ function getInitialRouteMode(): AppViewMode {
     }
     if (path.includes('/patient') || hash.includes('patient') || hash.includes('citizen')) {
       return 'patient';
-    }
-    if (path.includes('/paramedic') || hash.includes('paramedic')) {
-      return 'paramedic';
     }
     if (path.includes('/split') || hash.includes('dual_split') || hash.includes('split')) {
       return 'dual_split';
@@ -140,6 +188,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       newMode === 'citizen' ? 'patient'
       : newMode === 'tv_command' ? 'hospital'
       : newMode === 'regional_deoc' ? 'coordinate'
+      : newMode === 'paramedic' ? 'ambulance'
       : newMode;
 
     setModeState(canonicalMode);
@@ -148,52 +197,56 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const targetRoute =
         canonicalMode === 'landing' ? '/'
         : canonicalMode === 'planned_admission' ? '/planned-admission'
-        : canonicalMode === 'reception' ? '/reception'
-        : canonicalMode === 'patient' ? '/patient'
-        : canonicalMode === 'hospital' ? '/hospital'
+        : canonicalMode === 'partner' ? '/hb'
+        : canonicalMode === 'hospital' ? '/h'
         : canonicalMode === 'coordinate' ? '/coordinate'
-        : canonicalMode === 'paramedic' ? '/paramedic'
-        : '/split';
+        : canonicalMode === 'ambulance' ? '/a'
+        : canonicalMode === 'bloodbank' ? '/b'
+        : canonicalMode === 'dual_split' ? '/split'
+        : `/${canonicalMode}`;
 
-      // Update hash for preview iframe resilience and pushState for full URL
-      if (window.location.hash !== `#${targetRoute}`) {
-        window.location.hash = targetRoute;
-      }
-      if (window.history && window.history.pushState && window.location.pathname !== targetRoute) {
+      if (window.location.pathname !== targetRoute) {
         window.history.pushState(null, '', targetRoute);
       }
+      window.location.hash = `#${targetRoute}`;
     } catch {
       // ignore
     }
   }, []);
 
-  // Listen to browser popstate and hashchange
+  // Listen to popstate (back/forward button)
   useEffect(() => {
-    const handleUrlChange = () => {
-      const detected = getInitialRouteMode();
-      setModeState(detected);
+    const handleLocationChange = () => {
+      setModeState(getInitialRouteMode());
     };
-
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('hashchange', handleUrlChange);
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
     return () => {
-      window.removeEventListener('popstate', handleUrlChange);
-      window.removeEventListener('hashchange', handleUrlChange);
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
     };
   }, []);
+
   const [hospitals, setHospitals] = useState<Record<string, HospitalFacility>>(INITIAL_HOSPITALS);
   const [activeHospitalId, setActiveHospitalId] = useState<string>('hosp-apex');
-  const [isConnected, setIsConnected] = useState(false);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(true);
 
-  // State, City, Disease Onboarding Wizard
-  const [selectedState, setSelectedState] = useState<string>('delhi-ncr');
-  const [selectedCity, setSelectedCity] = useState<string>('delhi');
-  const [selectedDisease, setSelectedDisease] = useState<string>('heart-attack');
+  // Live Socket Streams
+  const [liveTokens, setLiveTokens] = useState<any[]>([]);
+  const [livePlannedAdmissions, setLivePlannedAdmissions] = useState<any[]>([]);
+  const [liveFacilities, setLiveFacilities] = useState<any[]>([]);
+  const [liveTelemetryLogs, setLiveTelemetryLogs] = useState<any[]>([]);
+  const [latestBroadcast, setLatestBroadcast] = useState<{ type: string; payload: any; timestamp: string } | null>(null);
+
+  // Intake Wizard State
+  const [selectedState, setSelectedState] = useState<string>('Uttar Pradesh');
+  const [selectedCity, setSelectedCity] = useState<string>('Kanpur');
+  const [selectedDisease, setSelectedDisease] = useState<string>('mi_cardiac');
   const [isWizardCompleted, setIsWizardCompleted] = useState<boolean>(false);
 
-  // Citizen Triage Draft State
-  const [patientName, setPatientName] = useState('Anil Sharma');
+  // Form State
+  const [patientName, setPatientName] = useState('Aarav Sharma');
   const [patientAge, setPatientAge] = useState(54);
   const [patientGender, setPatientGender] = useState<'Male' | 'Female' | 'Other'>('Male');
   const [contactPhone, setContactPhone] = useState('+91 98711 00223');
@@ -227,6 +280,13 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [transitProgress, setTransitProgress] = useState<number>(0);
 
   const socketRef = useRef<Socket | null>(null);
+
+  // Helper to emit any socket event safely
+  const emitSocketEvent = useCallback((event: string, data?: any) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit(event, data);
+    }
+  }, []);
 
   // When selectedDisease changes, sync category & defaults
   const handleSelectDisease = (diseaseId: string) => {
@@ -397,7 +457,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const qrPayloadString = generateQrPayload(currentTriageData);
 
-  // Socket Connection Lifecycle
+  // Socket Connection Lifecycle & Listeners for ALL Routes
   useEffect(() => {
     const socket = io({
       transports: ['websocket', 'polling'],
@@ -408,15 +468,18 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('[Socket.io] Connected to Prathmikta Realtime Mesh:', socket.id);
       setIsConnected(true);
       socket.emit('join:hospital', { hospitalId: activeHospitalId });
       socket.emit('join:city', { cityName: 'New Delhi / NCR' });
     });
 
     socket.on('disconnect', () => {
+      console.log('[Socket.io] Disconnected from Mesh');
       setIsConnected(false);
     });
 
+    // 1. Initial State Sync
     socket.on('hospital:state_sync', (hospital: HospitalFacility) => {
       setHospitals(prev => ({
         ...prev,
@@ -424,6 +487,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
     });
 
+    // 2. Inbound Emergency Alert
     socket.on('patient:inbound_received', (dispatch: InboundDispatch) => {
       setHospitals(prev => {
         const hosp = prev[dispatch.hospitalId];
@@ -442,7 +506,12 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       });
 
-      // Trigger audio alarm on inbound case
+      setLatestBroadcast({
+        type: 'INBOUND_EMERGENCY',
+        payload: dispatch,
+        timestamp: new Date().toISOString()
+      });
+
       if (isAudioEnabled) {
         if (dispatch.severity === 'RED') {
           playCodeRedAlert();
@@ -452,6 +521,52 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     });
 
+    // 3. Fast-Track ₹500 Tokens Live Broadcast
+    socket.on('token:new', (tokenData: any) => {
+      console.log('[Socket.io] New token received:', tokenData);
+      setLiveTokens(prev => [tokenData, ...prev.filter(t => t.tokenNumber !== tokenData.tokenNumber)].slice(0, 50));
+      setLatestBroadcast({
+        type: 'TOKEN_ISSUED',
+        payload: tokenData,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('token:issued', (tokenData: any) => {
+      setLiveTokens(prev => [tokenData, ...prev.filter(t => t.tokenNumber !== tokenData.tokenNumber)].slice(0, 50));
+    });
+
+    // 4. Planned Admissions Live Broadcast
+    socket.on('admission:new', (admissionData: any) => {
+      console.log('[Socket.io] New planned admission received:', admissionData);
+      setLivePlannedAdmissions(prev => [admissionData, ...prev.filter(a => a.bookingId !== admissionData.bookingId)].slice(0, 50));
+      setLatestBroadcast({
+        type: 'ADMISSION_BOOKED',
+        payload: admissionData,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('admission:booked', (admissionData: any) => {
+      setLivePlannedAdmissions(prev => [admissionData, ...prev.filter(a => a.bookingId !== admissionData.bookingId)].slice(0, 50));
+    });
+
+    // 5. Facility Partner Registrations Live Broadcast (/hb route)
+    socket.on('facility:registered', (facilityData: any) => {
+      console.log('[Socket.io] Facility registered broadcast:', facilityData);
+      setLiveFacilities(prev => [facilityData, ...prev.filter(f => f.facilityId !== facilityData.facilityId)].slice(0, 50));
+      setLatestBroadcast({
+        type: 'FACILITY_REGISTERED',
+        payload: facilityData,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('partner:facility_added', (facilityData: any) => {
+      setLiveFacilities(prev => [facilityData, ...prev.filter(f => f.facilityId !== facilityData.facilityId)].slice(0, 50));
+    });
+
+    // 6. Realtime Bed & Floor Synchronization
     socket.on('floor:beds_updated', (data: { hospitalId: string; floorId: number; floor: FloorData; totalFacilityBeds: number; occupiedFacilityBeds: number }) => {
       setHospitals(prev => {
         const hosp = prev[data.hospitalId];
@@ -469,6 +584,24 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
     });
 
+    socket.on('bed:capacity_synced', (bedData: any) => {
+      setLatestBroadcast({
+        type: 'BED_SYNC',
+        payload: bedData,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // 7. Telemetry Logs Broadcast
+    socket.on('telemetry:new_log', (logEntry: any) => {
+      setLiveTelemetryLogs(prev => [logEntry, ...prev].slice(0, 50));
+    });
+
+    socket.on('telemetry:stream', (logEntry: any) => {
+      setLiveTelemetryLogs(prev => [logEntry, ...prev].slice(0, 50));
+    });
+
+    // 8. Pharmacy Stock Updates
     socket.on('pharmacy:stock_updated', (data: { hospitalId: string; pharmacy: any }) => {
       setHospitals(prev => {
         const hosp = prev[data.hospitalId];
@@ -483,6 +616,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
     });
 
+    // 9. Patient Status & Bay Updates
     socket.on('patient:status_updated', (dispatch: InboundDispatch) => {
       setHospitals(prev => {
         const hosp = prev[dispatch.hospitalId];
@@ -505,6 +639,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
     });
 
+    // 10. Doctor Roster Status Updates
     socket.on('doctor:status_updated', (data: { hospitalId: string; floorId: number; doctorId: string; status: any; floor: FloorData }) => {
       setHospitals(prev => {
         const hosp = prev[data.hospitalId];
@@ -533,6 +668,88 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [activeHospitalId, isConnected]);
 
   const activeHospital = hospitals[activeHospitalId] || INITIAL_HOSPITALS['hosp-apex'];
+
+  // Socket Actions Helpers
+  const emitTokenCreate = async (tokenData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('token:create', tokenData);
+    }
+    try {
+      await fetch('/api/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tokenData)
+      });
+    } catch (err) {
+      console.warn('[Socket/REST] Token sync fallback', err);
+    }
+  };
+
+  const emitAdmissionBooking = async (bookingData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('admission:book', bookingData);
+    }
+    try {
+      await fetch('/api/planned-admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData)
+      });
+    } catch (err) {
+      console.warn('[Socket/REST] Admission sync fallback', err);
+    }
+  };
+
+  const emitPartnerFacilityRegister = async (facilityData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('facility:register', facilityData);
+    }
+    try {
+      await fetch('/api/partner/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(facilityData)
+      });
+    } catch (err) {
+      console.warn('[Socket/REST] Facility register fallback', err);
+    }
+  };
+
+  const emitBedSync = async (bedData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('bed:sync', bedData);
+    }
+    try {
+      await fetch('/api/bed-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bedData)
+      });
+    } catch (err) {
+      console.warn('[Socket/REST] Bed sync fallback', err);
+    }
+  };
+
+  const emitTelemetryLog = async (logData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('telemetry:log', logData);
+    }
+    try {
+      await fetch('/api/telemetry-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logData)
+      });
+    } catch (err) {
+      console.warn('[Socket/REST] Telemetry log fallback', err);
+    }
+  };
+
+  const emitAmbulanceTelemetry = (telemetryData: any) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('ambulance:telemetry_stream', telemetryData);
+    }
+  };
 
   // Toggle helpers
   const toggleSubSymptom = (sym: string) => {
@@ -607,17 +824,17 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Emit over socket
     if (socketRef.current && isConnected) {
       socketRef.current.emit('patient:dispatch_inbound', newDispatch);
-    } else {
-      // Direct REST fallback
-      try {
-        await fetch('/api/dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newDispatch)
-        });
-      } catch (err) {
-        console.warn('Fallback dispatch to local storage', err);
-      }
+    }
+
+    // Always persist to MongoDB via REST API as well
+    try {
+      fetch('/api/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDispatch)
+      }).catch(() => {});
+    } catch {
+      // offline fallback
     }
 
     if (isAudioEnabled) {
@@ -794,6 +1011,19 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActiveHospitalId,
         activeHospital,
         isConnected,
+        socket: socketRef.current,
+        emitSocketEvent,
+        liveTokens,
+        livePlannedAdmissions,
+        liveFacilities,
+        liveTelemetryLogs,
+        latestBroadcast,
+        emitTokenCreate,
+        emitAdmissionBooking,
+        emitPartnerFacilityRegister,
+        emitBedSync,
+        emitTelemetryLog,
+        emitAmbulanceTelemetry,
         selectedState,
         setSelectedState,
         selectedCity,

@@ -37,7 +37,7 @@ import {
 import { RealLeafletHospitalMap } from '../map/RealLeafletHospitalMap';
 
 export const PlannedAdmissionBooking: React.FC = () => {
-  const { setMode } = usePrathmikta();
+  const { setMode, emitAdmissionBooking } = usePrathmikta();
 
   // User Location (Default to Kanpur Hub, overridden by real GPS if allowed)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({
@@ -178,35 +178,51 @@ export const PlannedAdmissionBooking: React.FC = () => {
     setIsBookingModalOpen(true);
   };
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     playTactileClick();
     setIsProcessingPayment(true);
 
-    setTimeout(() => {
-      setIsProcessingPayment(false);
-      setIsBookingModalOpen(false);
+    const hospCode = selectedHospital
+      ? selectedHospital.name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase()
+      : 'GSVM';
+    const randomHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
+    const tokenId = `PRT-26-${hospCode}-${randomHex}`;
+    setConfirmedTokenId(tokenId);
 
-      const hospCode = selectedHospital
-        ? selectedHospital.name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase()
-        : 'GSVM';
-      const randomHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
-      setConfirmedTokenId(`PRT-26-${hospCode}-${randomHex}`);
+    const now = new Date();
+    now.setHours(now.getHours() + 3);
+    const validUntil = now.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    setValidTillTime(validUntil);
 
-      const now = new Date();
-      now.setHours(now.getHours() + 3);
-      setValidTillTime(
-        now.toLocaleString('en-IN', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      );
+    // Save to MongoDB Atlas & Broadcast via Socket.io
+    try {
+      await emitAdmissionBooking({
+        bookingId: tokenId,
+        patientName: 'Aarav Kumar (ABHA Patient)',
+        contactPhone: '+91 98765 43210',
+        hospitalId: selectedHospital?.id || 'gsvm-kanpur',
+        hospitalName: selectedHospital?.name || 'GSVM Medical College',
+        department: bedType,
+        scheduledDate: new Date().toISOString().split('T')[0],
+        timeSlot: '11:30 AM - 01:30 PM',
+        admissionType: bedType,
+        preAdmissionDeposit: 500,
+        status: 'CONFIRMED'
+      });
+    } catch (err) {
+      console.warn('[Socket/MongoDB] Syncing planned admission record', err);
+    }
 
-      setIsSuccessModalOpen(true);
-      playConfirmChime();
-    }, 1200);
+    setIsProcessingPayment(false);
+    setIsBookingModalOpen(false);
+    setIsSuccessModalOpen(true);
+    playConfirmChime();
   };
 
   return (

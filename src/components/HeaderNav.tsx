@@ -118,6 +118,44 @@ export const HeaderNav: React.FC = () => {
           >
             Contact Us
           </button>
+
+          <button
+            id="nav-link-ambulance"
+            onClick={() => {
+              playTactileClick();
+              setMode('ambulance');
+            }}
+            className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Ambulance Emergency Dashboard (/a)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            <span>Ambulance (/a)</span>
+          </button>
+
+          <button
+            id="nav-link-bloodbank"
+            onClick={() => {
+              playTactileClick();
+              setMode('bloodbank');
+            }}
+            className="px-3 py-1.5 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Blood Bank Control Center (/b)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+            <span>Blood Bank (/b)</span>
+          </button>
+
+          <button
+            id="nav-link-hb-partner"
+            onClick={() => {
+              playTactileClick();
+              setMode('partner');
+            }}
+            className="px-3 py-1.5 rounded-xl bg-blue-50 text-[#1d63ff] hover:bg-blue-100 border border-blue-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1d63ff]"></span>
+            <span>Partner (/hb)</span>
+          </button>
         </nav>
 
         {/* Mobile Hamburger Menu Button */}
@@ -173,6 +211,42 @@ export const HeaderNav: React.FC = () => {
           >
             <HeartHandshake className="w-4 h-4 text-red-600" />
             <span>Contact Us</span>
+          </button>
+
+          <button
+            onClick={() => {
+              playTactileClick();
+              setMobileMenuOpen(false);
+              setMode('ambulance');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-emerald-50 text-emerald-700 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+            <span>Ambulance 108 Dashboard (/a)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              playTactileClick();
+              setMobileMenuOpen(false);
+              setMode('bloodbank');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-red-50 text-red-700 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-red-600"></span>
+            <span>Blood Bank Control Center (/b)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              playTactileClick();
+              setMobileMenuOpen(false);
+              setMode('partner');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-blue-50 text-[#1d63ff] transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#1d63ff]"></span>
+            <span>Partner / Facility Portal (/hb)</span>
           </button>
 
           <div className="pt-2 border-t border-slate-100">

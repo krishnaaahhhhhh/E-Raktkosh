@@ -603,35 +603,37 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Dedicated Hospital Reception & Front-Desk Triage Command Launcher */}
-          <div className="pt-4">
+          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* 1. Reception Desk Card */}
             <div
               onClick={() => {
                 playConfirmChime();
                 setMode('reception');
               }}
-              className="rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 shadow-2xl hover:border-red-500/50 transition-all cursor-pointer group flex flex-col md:flex-row items-center justify-between gap-6"
+              className="rounded-3xl p-6 sm:p-7 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 shadow-xl hover:border-red-500/50 transition-all cursor-pointer group flex flex-col justify-between gap-4"
             >
-              <div className="flex items-center gap-4 text-left">
-                <div className="w-14 h-14 rounded-2xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Stethoscope className="w-7 h-7" />
+              <div className="flex items-start gap-4 text-left">
+                <div className="w-12 h-12 rounded-2xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Stethoscope className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-red-400 bg-red-600/20 px-2.5 py-0.5 rounded-full border border-red-500/30">
-                      ER Staff &amp; Reception Desk
+                    <span className="text-[10px] font-black uppercase tracking-wider text-red-400 bg-red-600/20 px-2 py-0.5 rounded-full border border-red-500/30">
+                      ER Staff &amp; Front-Desk
                     </span>
                     <span className="text-xs text-slate-400 font-medium">/reception</span>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                    Hospital Reception &amp; Front-Desk Triage Dashboard
+                  <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                    Reception &amp; Triage Desk
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
-                    Track real-time incoming arrival times, ₹500 pre-deposit tokens, doctor rosters with shift timings, live vacant ICU &amp; NICU beds, ambulance fleet readiness, and Gate stretcher routing.
+                  <p className="text-xs text-slate-400">
+                    Track real-time incoming arrival times, ₹500 pre-deposit tokens, doctor rosters, vacant ICU/NICU beds, and gate dispatch.
                   </p>
                 </div>
               </div>
 
-              <div className="shrink-0 w-full md:w-auto">
+              <div className="pt-2 flex justify-end">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -639,13 +641,58 @@ export const LandingPage: React.FC = () => {
                     playConfirmChime();
                     setMode('reception');
                   }}
-                  className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-red-600/30 transition-all cursor-pointer"
                 >
                   <span>Launch Reception Portal</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
+
+            {/* 2. Partner Portal (/hb) - Hospital & Blood Bank Registration */}
+            <div
+              onClick={() => {
+                playConfirmChime();
+                setMode('partner');
+              }}
+              className="rounded-3xl p-6 sm:p-7 bg-gradient-to-r from-blue-950 via-slate-950 to-blue-950 text-white border border-blue-900/50 shadow-xl hover:border-blue-500/50 transition-all cursor-pointer group flex flex-col justify-between gap-4"
+            >
+              <div className="flex items-start gap-4 text-left">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 bg-blue-600/20 px-2 py-0.5 rounded-full border border-blue-500/30">
+                      Partner Portal &bull; ABDM Grid
+                    </span>
+                    <span className="text-xs text-blue-400 font-medium">/hb</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                    Facility &amp; Blood Bank Onboarding
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Hospitals, blood banks, and ambulance fleets register live bed capacity, blood units (A+, B+, O, AB), and GPS telemetry.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playConfirmChime();
+                    setMode('partner');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#1d63ff] hover:bg-blue-600 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-blue-600/30 transition-all cursor-pointer"
+                >
+                  <span>Register Facility (/hb)</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>

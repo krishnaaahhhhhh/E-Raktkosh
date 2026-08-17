@@ -5,14 +5,27 @@ import { LandingPage } from './components/landing/LandingPage';
 import { CitizenEmergencyApp } from './components/citizen/CitizenEmergencyApp';
 import { PlannedAdmissionBooking } from './components/citizen/PlannedAdmissionBooking';
 import { ParamedicAmbulanceApp } from './components/paramedic/ParamedicAmbulanceApp';
+import { AmbulanceResponseDashboard } from './components/ambulance/AmbulanceResponseDashboard';
+import { BloodBankControlCenter } from './components/bloodbank/BloodBankControlCenter';
 import { HospitalCommandCenter } from './components/hospital/HospitalCommandCenter';
 import { EmergencyCoordinateCenter } from './components/coordinate/EmergencyCoordinateCenter';
 import { DualSplitView } from './components/DualSplitView';
 import { ReceptionDashboard } from './components/reception/ReceptionDashboard';
+import { FacilityRegistrationPortal } from './components/partner/FacilityRegistrationPortal';
 
 const AppContent: React.FC = () => {
   const { mode } = usePrathmikta();
-  const isCustomHeaderMode = mode === 'patient' || mode === 'citizen' || mode === 'planned_admission' || mode === 'reception';
+  const isCustomHeaderMode =
+    mode === 'patient' ||
+    mode === 'citizen' ||
+    mode === 'planned_admission' ||
+    mode === 'reception' ||
+    mode === 'partner' ||
+    mode === 'hospital' ||
+    mode === 'tv_command' ||
+    mode === 'ambulance' ||
+    mode === 'paramedic' ||
+    mode === 'bloodbank';
 
   return (
     <div id="prathmikta-root-container" className="w-screen h-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans">
@@ -21,10 +34,11 @@ const AppContent: React.FC = () => {
         {mode === 'landing' && <LandingPage />}
         {(mode === 'patient' || mode === 'citizen') && <CitizenEmergencyApp />}
         {mode === 'planned_admission' && <PlannedAdmissionBooking />}
-        {mode === 'reception' && <ReceptionDashboard />}
-        {(mode === 'hospital' || mode === 'tv_command') && <HospitalCommandCenter />}
+        {(mode === 'reception' || mode === 'hospital' || mode === 'tv_command') && <HospitalCommandCenter />}
+        {mode === 'partner' && <FacilityRegistrationPortal />}
         {(mode === 'coordinate' || mode === 'regional_deoc') && <EmergencyCoordinateCenter />}
-        {mode === 'paramedic' && <ParamedicAmbulanceApp />}
+        {(mode === 'ambulance' || mode === 'paramedic') && <AmbulanceResponseDashboard />}
+        {mode === 'bloodbank' && <BloodBankControlCenter />}
         {mode === 'dual_split' && <DualSplitView />}
       </main>
     </div>
