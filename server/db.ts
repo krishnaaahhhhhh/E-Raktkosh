@@ -1,8 +1,8 @@
 import mongoose, { Document, Model } from 'mongoose';
 
-// Fallback MongoDB connection URI provided by the user
+// Primary MongoDB connection URI provided for Alex Cluster
 const DEFAULT_MONGODB_URI =
-  'mongodb+srv://krishnasinghrathour9628_db_user:hfBai0rRr1Na1dfv@cluster0.dellwum.mongodb.net/prathmikta_db?retryWrites=true&w=majority&appName=Cluster0';
+  'mongodb+srv://krishna17429_db_user:TmJp5wp1r5EJy024@alex.qzksix9.mongodb.net/prathmikta_db?retryWrites=true&w=majority&appName=Alex';
 
 export const MONGODB_URI = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
 
@@ -330,3 +330,72 @@ const TelemetryLogSchema = new mongoose.Schema<ITelemetryLog>(
 export const TelemetryLogModel: Model<ITelemetryLog> =
   mongoose.models.TelemetryLog ||
   mongoose.model<ITelemetryLog>('TelemetryLog', TelemetryLogSchema);
+
+// G. Stretcher Attendant Duty & Dispatch Schema (/stretcher route)
+export interface IStretcherAttendant extends Document {
+  attendantId: string;
+  name: string;
+  employeeId: string;
+  dutyStatus: string;
+  shiftHours: string;
+  heatIndexNow: number;
+  shadeCompliance: number;
+  hydrationLogs: number;
+  totalTrips: number;
+  activeDutyMinutes: number;
+  currentLocation: string;
+  onBreak: boolean;
+}
+
+const StretcherAttendantSchema = new mongoose.Schema<IStretcherAttendant>(
+  {
+    attendantId: { type: String, required: true, unique: true, index: true },
+    name: { type: String, default: 'Ram Singh' },
+    employeeId: { type: String, default: 'SA-1047' },
+    dutyStatus: { type: String, default: 'Shade Shelter Active' },
+    shiftHours: { type: String, default: '08:00 AM to 04:00 PM' },
+    heatIndexNow: { type: Number, default: 42.8 },
+    shadeCompliance: { type: Number, default: 98 },
+    hydrationLogs: { type: Number, default: 3 },
+    totalTrips: { type: Number, default: 6 },
+    activeDutyMinutes: { type: Number, default: 165 },
+    currentLocation: { type: String, default: 'Indoor Shade Shelter – Emergency Block A' },
+    onBreak: { type: Boolean, default: false }
+  },
+  { timestamps: true }
+);
+
+export const StretcherAttendantModel: Model<IStretcherAttendant> =
+  mongoose.models.StretcherAttendant ||
+  mongoose.model<IStretcherAttendant>('StretcherAttendant', StretcherAttendantSchema);
+
+// H. Stretcher Dispatch Alerts Schema
+export interface IStretcherDispatch extends Document {
+  dispatchId: string;
+  attendantId: string;
+  time: string;
+  destination: string;
+  reason: string;
+  priority: string;
+  etaRequired: string;
+  status: string;
+}
+
+const StretcherDispatchSchema = new mongoose.Schema<IStretcherDispatch>(
+  {
+    dispatchId: { type: String, required: true, unique: true, index: true },
+    attendantId: { type: String, default: 'SA-1047', index: true },
+    time: { type: String, required: true },
+    destination: { type: String, required: true },
+    reason: { type: String, default: 'Emergency Patient Transfer' },
+    priority: { type: String, default: 'High' },
+    etaRequired: { type: String, default: 'Within 3 Minutes' },
+    status: { type: String, default: 'Pending' }
+  },
+  { timestamps: true }
+);
+
+export const StretcherDispatchModel: Model<IStretcherDispatch> =
+  mongoose.models.StretcherDispatch ||
+  mongoose.model<IStretcherDispatch>('StretcherDispatch', StretcherDispatchSchema);
+

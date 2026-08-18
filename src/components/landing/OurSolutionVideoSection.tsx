@@ -197,7 +197,7 @@ export default function OurSolutionVideoSection({
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[500px] bg-blue-500/5 filter blur-[150px] pointer-events-none rounded-full" />
       <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12">
+      <div className="w-full px-4 sm:px-8 lg:px-12 relative z-10 space-y-12">
         {/* Section Header */}
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-wider shadow-sm">

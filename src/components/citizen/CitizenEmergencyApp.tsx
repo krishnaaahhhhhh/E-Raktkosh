@@ -36,7 +36,9 @@ import {
   RotateCcw,
   MessageSquare,
   User,
-  Radio
+  Radio,
+  Send,
+  Loader2
 } from 'lucide-react';
 import { playTactileClick, playConfirmChime, playCodeRedAlert } from '../../lib/audio';
 import {
@@ -46,6 +48,86 @@ import {
   reverseGeocode
 } from '../../services/hospitalService';
 import { RealLeafletHospitalMap } from '../map/RealLeafletHospitalMap';
+import { PatientReportModal, PatientEmergencyReportData } from './PatientReportModal';
+
+// Diverse randomized emergency clinical scenarios generated dynamically on each page load/refresh
+const DYNAMIC_REFRESH_SCENARIOS = [
+  {
+    patientName: 'Amit Kumar',
+    patientGender: 'Male',
+    patientAge: '45',
+    category: 'Cardiac',
+    selectedEmergency: 'chest_pain',
+    transcript: '"Patient ko severe radiating chest pain ho raha hai, age 45 hai, heavy sweating aur BP drop ho raha hai..."',
+    vitals: { spo2: 95, pulse: 104, bp: '100/68' },
+    symptomTime: '< 30 mins',
+    consciousness: 'Alert',
+    redFlags: { diabetes: false, hypertension: true, bloodThinners: true, heartDisease: true, pregnancy: false },
+    detectedCategory: 'Acute Cardiac / STEMI',
+    detectedRedFlags: 'Hypertension, Prior Stent',
+    detectedVitals: 'BP 100/68 mmHg, Pulse 104 bpm, SpO2 95%'
+  },
+  {
+    patientName: 'Sunita Sharma',
+    patientGender: 'Female',
+    patientAge: '58',
+    category: 'Stroke / Neurological',
+    selectedEmergency: 'stroke',
+    transcript: '"Mataji ka right side pura sunn pad gaya hai aur bolne me takleef ho rahi hai, sudden paralysis attack lag raha hai..."',
+    vitals: { spo2: 97, pulse: 88, bp: '168/102' },
+    symptomTime: '45 mins ago',
+    consciousness: 'Drowsy',
+    redFlags: { diabetes: true, hypertension: true, bloodThinners: false, heartDisease: false, pregnancy: false },
+    detectedCategory: 'Acute Stroke / Neurological Deficit',
+    detectedRedFlags: 'Severe Hypertension, Diabetes Mellitus',
+    detectedVitals: 'BP 168/102 mmHg (High), SpO2 97%'
+  },
+  {
+    patientName: 'Rahul Verma',
+    patientGender: 'Male',
+    patientAge: '28',
+    category: 'Severe Trauma / RTA',
+    selectedEmergency: 'trauma',
+    transcript: '"GT Road pe bike accident hua hai, deep head laceration aur leg fracture se severe bleeding ho rahi hai..."',
+    vitals: { spo2: 92, pulse: 122, bp: '92/60' },
+    symptomTime: '< 15 mins',
+    consciousness: 'Altered / Disoriented',
+    redFlags: { diabetes: false, hypertension: false, bloodThinners: false, heartDisease: false, pregnancy: false },
+    detectedCategory: 'Severe Polytrauma & Hemorrhage',
+    detectedRedFlags: 'Hypovolemic Shock Risk',
+    detectedVitals: 'Pulse 122 bpm (Tachycardia), BP 92/60 mmHg'
+  },
+  {
+    patientName: 'Pooja Tiwari',
+    patientGender: 'Female',
+    patientAge: '34',
+    category: 'Acute Respiratory Distress',
+    selectedEmergency: 'breathing',
+    transcript: '"Severe asthma bronchospasm attack hai, oxygen saturation gir raha hai aur saans lene me bohot dikkat ho rahi hai..."',
+    vitals: { spo2: 88, pulse: 116, bp: '135/88' },
+    symptomTime: '< 20 mins',
+    consciousness: 'Alert',
+    redFlags: { diabetes: false, hypertension: false, bloodThinners: false, heartDisease: false, pregnancy: true },
+    detectedCategory: 'Acute Respiratory Distress / Hypoxia',
+    detectedRedFlags: 'Pregnancy (2nd Trimester), Chronic Asthma',
+    detectedVitals: 'SpO2 88% (Critical Hypoxia), Pulse 116 bpm'
+  },
+  {
+    patientName: 'Rameshwar Yadav',
+    patientGender: 'Male',
+    patientAge: '62',
+    category: 'Thermal Burn / Inhalation Injury',
+    selectedEmergency: 'burn',
+    transcript: '"Gas cylinder flame burst hua hai, upper chest aur face pe partial 2nd degree burn marks hai..."',
+    vitals: { spo2: 93, pulse: 110, bp: '142/90' },
+    symptomTime: '< 25 mins',
+    consciousness: 'Alert',
+    redFlags: { diabetes: true, hypertension: false, bloodThinners: false, heartDisease: false, pregnancy: false },
+    detectedCategory: 'Thermal Flash Burn & Inhalation Risk',
+    detectedRedFlags: 'Diabetes Mellitus, Inhalation Airway Risk',
+    detectedVitals: 'Pulse 110 bpm, SpO2 93%, BP 142/90 mmHg'
+  }
+];
 
 export const CitizenEmergencyApp: React.FC = () => {
   const { setMode } = usePrathmikta();
@@ -85,6 +167,8 @@ export const CitizenEmergencyApp: React.FC = () => {
   const speechRecognitionRef = useRef<any>(null);
 
   // Form State
+  const [patientName, setPatientName] = useState<string>('Amit Kumar');
+  const [patientGender, setPatientGender] = useState<string>('Male');
   const [symptomTime, setSymptomTime] = useState<string>('< 30 mins');
   const [allergy, setAllergy] = useState<string>('None');
   const [patientAge, setPatientAge] = useState<string>('13–60');
@@ -111,7 +195,40 @@ export const CitizenEmergencyApp: React.FC = () => {
   const [qrTokenId, setQrTokenId] = useState<string>('PRATH-2026-GSVM-9842');
   const [navProgress, setNavProgress] = useState(0);
 
-  // 1. Geolocation & Hospital initialization
+  // AI Generated Report State & Modal
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [currentReportData, setCurrentReportData] = useState<PatientEmergencyReportData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitSuccessNotice, setSubmitSuccessNotice] = useState<string | null>(null);
+
+  // 1. Dynamic Scenario Randomizer on Page Refresh / Mount
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * DYNAMIC_REFRESH_SCENARIOS.length);
+    const scenario = DYNAMIC_REFRESH_SCENARIOS[randomIndex];
+
+    setPatientName(scenario.patientName);
+    setPatientGender(scenario.patientGender);
+    setPatientAge(scenario.patientAge);
+    setSelectedEmergency(scenario.selectedEmergency);
+    setVoiceTranscript(scenario.transcript);
+    setVitals(scenario.vitals);
+    setSymptomTime(scenario.symptomTime);
+    setConsciousness(scenario.consciousness);
+    setRedFlags(scenario.redFlags);
+    setDetectedData({
+      category: scenario.detectedCategory,
+      age: `${scenario.patientAge} Years`,
+      consciousness: scenario.consciousness,
+      redFlags: scenario.detectedRedFlags,
+      vitals: scenario.detectedVitals,
+      isReportGenerated: true
+    });
+
+    const randomizedToken = `PRATH-${new Date().getFullYear()}-GSVM-${Math.floor(1000 + Math.random() * 9000)}`;
+    setQrTokenId(randomizedToken);
+  }, []);
+
+  // 2. Geolocation & Hospital initialization
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -362,9 +479,184 @@ export const CitizenEmergencyApp: React.FC = () => {
     }, 900);
   };
 
+  const constructEmergencyReport = (): PatientEmergencyReportData => {
+    const isVoice = inputMode === 'voice';
+    const emergencyCategoryName = isVoice
+      ? detectedData.category
+      : selectedEmergency === 'chest_pain'
+      ? 'Chest Pain / Acute Cardiac Event'
+      : selectedEmergency === 'trauma'
+      ? 'Severe Trauma / Hemorrhage'
+      : selectedEmergency === 'stroke'
+      ? 'Acute Stroke / Neurological Deficit'
+      : selectedEmergency === 'burn'
+      ? 'Thermal Burn Injury'
+      : 'Acute Respiratory Distress';
+
+    const activeRedFlags: string[] = [];
+    if (redFlags.hypertension) activeRedFlags.push('Hypertension');
+    if (redFlags.diabetes) activeRedFlags.push('Diabetes Mellitus');
+    if (redFlags.bloodThinners) activeRedFlags.push('Blood Thinners (Anticoagulants)');
+    if (redFlags.heartDisease) activeRedFlags.push('Previous Cardiac Disease');
+    if (redFlags.pregnancy) activeRedFlags.push('Active Pregnancy');
+
+    const calculatedToken = qrTokenId || `PRATH-${new Date().getFullYear()}-${(selectedHospital?.id || 'GSVM').toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const currentTimestamp = new Date().toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const isCritical =
+      selectedEmergency === 'chest_pain' ||
+      selectedEmergency === 'trauma' ||
+      consciousness === 'Unconscious' ||
+      vitals.spo2 < 92;
+
+    const severity: 'RED (Critical / Immediate)' | 'YELLOW (Urgent)' | 'GREEN (Stable)' = isCritical
+      ? 'RED (Critical / Immediate)'
+      : 'YELLOW (Urgent)';
+
+    const clinicalSummary = isVoice
+      ? `AI Voice Assessment extracted acute ${detectedData.category} distress with consciousness level '${detectedData.consciousness}'. Extracted vital signs indicate ${detectedData.vitals} with background risk factors (${detectedData.redFlags}). Immediate ER triage bay reservation recommended.`
+      : `Pre-arrival triage intake indicates patient presenting with ${emergencyCategoryName} of duration ${symptomTime}. Baseline consciousness is '${consciousness}'. Known allergies: ${allergy}. Medical history positive for: ${activeRedFlags.join(', ') || 'None'}.`;
+
+    const aiSuggestedActions = [
+      'Keep patient in semi-fowler / resting position; avoid physical strain.',
+      'Ensure clear airway and oxygen support readiness upon ER arrival.',
+      'Prepare ECG & Cardiac Enzyme / Trauma Bay protocol at destination ER.',
+      'Maintain continuous SpO2 and Blood Pressure surveillance.'
+    ];
+
+    const targetHospital: RealHospital = selectedHospital || (hospitals.length > 0 ? hospitals[0] : {
+      id: 'gsvm',
+      name: 'GSVM Medical College & Hospital',
+      address: 'Swaroop Nagar, Kanpur, Uttar Pradesh 208002',
+      lat: 26.4712,
+      lng: 80.3211,
+      distance: '2.1 km',
+      distanceKm: 2.1,
+      travelTime: '6 min',
+      travelTimeMinutes: 6,
+      phone: '+91 512 253 5483',
+      icuBeds: 4,
+      generalBeds: 14,
+      nicuStatus: 'Available',
+      pharmacyOpen: true,
+      erStatus: 'Open',
+      waitingTime: '~ 5 min',
+      imageUrl: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80',
+      corridorName: 'GT Road Corridor',
+      category: 'medical_college',
+      isVerified: true
+    });
+
+    return {
+      reportId: `REP-${Date.now().toString().slice(-6)}`,
+      timestamp: currentTimestamp,
+      patientName: patientName.trim() || 'Amit Kumar',
+      patientAge: isVoice ? detectedData.age : patientAge,
+      gender: patientGender,
+      inputMethod: isVoice ? 'AI Voice Triage' : 'Manual Self-Triage',
+      emergencyCategory: emergencyCategoryName,
+      symptomDuration: isVoice ? '< 30 mins' : symptomTime,
+      consciousness: isVoice ? detectedData.consciousness : consciousness,
+      vitals: {
+        spo2: vitals.spo2,
+        pulse: vitals.pulse,
+        bp: vitals.bp
+      },
+      medicalRedFlags: isVoice ? [detectedData.redFlags] : activeRedFlags,
+      allergies: allergy,
+      hospital: targetHospital,
+      userLocationName: locationName,
+      qrTokenId: calculatedToken,
+      severityLevel: severity,
+      clinicalSummary,
+      aiSuggestedActions
+    };
+  };
+
+  const handleOpenReportModal = () => {
+    playConfirmChime();
+    const rep = constructEmergencyReport();
+    setCurrentReportData(rep);
+    setIsReportModalOpen(true);
+  };
+
+  // Submit Emergency Intake -> Generate AI Medical Report & Auto-Transmit to Hospital Reception Dashboard
+  const handleSubmitAndGenerateAiReport = async () => {
+    playConfirmChime();
+    setIsSubmitting(true);
+    setSubmitSuccessNotice(null);
+
+    const generatedReport = constructEmergencyReport();
+    setCurrentReportData(generatedReport);
+
+    try {
+      // 1. Prepare standard InboundDispatch payload for Hospital Reception Grid
+      const dispatchPayload = {
+        dispatchId: generatedReport.qrTokenId || `PRATH-DISP-${Date.now()}`,
+        hospitalId: generatedReport.hospital.id || 'gsvm-kanpur',
+        hospitalName: generatedReport.hospital.name,
+        severity: generatedReport.severityLevel.includes('RED') ? 'RED' : 'YELLOW',
+        status: 'In Queue',
+        etaMinutes: generatedReport.hospital.travelTimeMinutes || 6,
+        ambulanceId: 'CITIZEN-EMERGENCY',
+        patient: {
+          fullName: generatedReport.patientName,
+          age: parseInt(generatedReport.patientAge) || 35,
+          gender: generatedReport.gender || 'Male',
+          contactPhone: '+91 98765 43210',
+          symptomCategory: generatedReport.emergencyCategory,
+          subSymptoms: generatedReport.medicalRedFlags,
+          onsetTime: generatedReport.symptomDuration,
+          avpuScale: generatedReport.consciousness === 'Unconscious' ? 'U' : generatedReport.consciousness === 'Drowsy' ? 'V' : 'A',
+          vitals: {
+            bp: generatedReport.vitals.bp,
+            spo2: generatedReport.vitals.spo2,
+            heartRate: generatedReport.vitals.pulse
+          },
+          targetDepartment: generatedReport.emergencyCategory.includes('Cardiac')
+            ? 'Emergency Cardiology'
+            : generatedReport.emergencyCategory.includes('Trauma')
+            ? 'ER Trauma Bay'
+            : 'Emergency Critical Care',
+          clinicalPriorityNotes: generatedReport.clinicalSummary
+        },
+        originCoords: { lat: generatedReport.hospital.lat || 26.4712, lng: generatedReport.hospital.lng || 80.3211 },
+        currentCoords: { lat: generatedReport.hospital.lat || 26.4712, lng: generatedReport.hospital.lng || 80.3211 }
+      };
+
+      // 2. Transmit to server API (broadcasts via Socket.io to GSVM hospital dashboard in real-time)
+      await fetch('/api/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dispatchPayload)
+      });
+
+      setIsSubmitting(false);
+      setSubmitSuccessNotice(`Report successfully generated & transmitted to ${generatedReport.hospital.name} live dashboard!`);
+
+      // 3. Open AI Medical Report Modal for patient preview and download
+      setIsReportModalOpen(true);
+    } catch (err) {
+      console.error('Submission error:', err);
+      setIsSubmitting(false);
+      // Still open modal so patient can view/save report
+      setIsReportModalOpen(true);
+    }
+  };
+
   const handleDispatchAndGenerateQr = () => {
     playConfirmChime();
-    setQrTokenId(`PRATH-${new Date().getFullYear()}-${selectedHospital.id.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`);
+    const token = `PRATH-${new Date().getFullYear()}-${(selectedHospital?.id || 'GSVM').toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setQrTokenId(token);
     setIsQrModalOpen(true);
   };
 
@@ -436,7 +728,44 @@ export const CitizenEmergencyApp: React.FC = () => {
       {/* ========================================================================= */}
       {/* MAIN 2-COLUMN DASHBOARD GRID */}
       {/* ========================================================================= */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        
+        {/* Dynamic Scenario Indicator & Success Banner */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-extrabold text-slate-800">Dynamic AI Triage Intake</span>
+            <span className="text-slate-400">|</span>
+            <span className="text-slate-600 font-medium">Page refresh generates new clinical patient profiles automatically. Click <strong className="text-red-600 font-black">"Submit"</strong> to transmit directly to GSVM reception.</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all cursor-pointer"
+              title="Generate new patient emergency profile"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Refresh Scenario</span>
+            </button>
+          </div>
+        </div>
+
+        {submitSuccessNotice && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+              <span>{submitSuccessNotice}</span>
+            </div>
+            <button
+              onClick={() => setSubmitSuccessNotice(null)}
+              className="text-emerald-700 hover:text-emerald-900 text-xs font-black cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* ======================================================================= */}
@@ -864,25 +1193,59 @@ export const CitizenEmergencyApp: React.FC = () => {
                   <div className="w-5 h-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin shrink-0 hidden sm:block" />
                 </div>
 
-                {/* 5. Bottom Action Buttons: Reset & Speak Again + Proceed to Dispatch */}
-                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                {/* 5. Bottom Action Buttons: Submit & Generate AI Report + Reset + QR Token */}
+                <div className="space-y-3 pt-2">
+                  {/* Primary Submit Button */}
                   <button
                     type="button"
-                    onClick={handleResetVoice}
-                    className="w-full sm:w-auto py-3 px-5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+                    onClick={handleSubmitAndGenerateAiReport}
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-red-600/30 active:scale-95 transition-all cursor-pointer"
                   >
-                    <RotateCcw className="w-4 h-4 text-slate-500" />
-                    <span>Reset &amp; Speak Again</span>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Generating AI Medical Report &amp; Transmitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 fill-white" />
+                        <span>Submit Intake &amp; Generate AI Report (Direct Transfer)</span>
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      </>
+                    )}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleDispatchAndGenerateQr}
-                    className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-[#1d63ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <span>Proceed to Dispatch</span>
-                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-                  </button>
+                  {/* Secondary auxiliary buttons */}
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleResetVoice}
+                      className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Reset &amp; Speak Again</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenReportModal}
+                      className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Preview AI Report</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDispatchAndGenerateQr}
+                      className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Generate QR Token</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -894,6 +1257,45 @@ export const CitizenEmergencyApp: React.FC = () => {
                 
                 <div className="text-xs font-black uppercase tracking-wider text-slate-800">
                   RIGHT: PRE-ARRIVAL FORM &amp; DISPATCH
+                </div>
+
+                {/* Patient Name & Gender Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Patient Full Name</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      placeholder="e.g. Amit Kumar"
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Gender
+                    </label>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['Male', 'Female'].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setPatientGender(g)}
+                          className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
+                            patientGender === g
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Symptom Start Time */}
@@ -1091,21 +1493,63 @@ export const CitizenEmergencyApp: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Bottom Action Card: DISPATCH TO ER & GENERATE OFFLINE QR TOKEN */}
-                <div
-                  onClick={handleDispatchAndGenerateQr}
-                  className="p-4 sm:p-5 rounded-3xl bg-[#ecfdf5] border border-emerald-200/90 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-[#d1fae5] transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <QrCode className="w-6 h-6" />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <h3 className="text-xs sm:text-sm font-black text-emerald-800 tracking-tight">
-                      DISPATCH TO ER &amp; GENERATE OFFLINE QR TOKEN
-                    </h3>
-                    <p className="text-xs text-slate-600 font-medium">
-                      Hospital will receive your details instantly
-                    </p>
+                {/* Bottom Action Cards: SUBMIT & GENERATE AI REPORT + PREVIEW & QR */}
+                <div className="space-y-3 pt-2">
+                  {/* Primary Submit Button */}
+                  <button
+                    type="button"
+                    onClick={handleSubmitAndGenerateAiReport}
+                    disabled={isSubmitting}
+                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-red-600/30 active:scale-95 transition-all cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Generating AI Medical Report &amp; Transmitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 fill-white" />
+                        <span>Submit Intake &amp; Generate AI Report (Direct Transfer)</span>
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div
+                      onClick={handleOpenReportModal}
+                      className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200/90 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-indigo-100/80 transition-all group"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-indigo-500/20">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="text-left space-y-0.5">
+                        <h3 className="text-xs font-black text-indigo-950 tracking-tight leading-tight">
+                          PREVIEW AI REPORT &amp; PDF
+                        </h3>
+                        <p className="text-[11px] text-indigo-700 font-medium">
+                          Check report layout
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={handleDispatchAndGenerateQr}
+                      className="p-3.5 rounded-2xl bg-[#ecfdf5] border border-emerald-200/90 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-[#d1fae5] transition-all group"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-emerald-500/20">
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <div className="text-left space-y-0.5">
+                        <h3 className="text-xs font-black text-emerald-950 tracking-tight leading-tight">
+                          GENERATE QR TOKEN
+                        </h3>
+                        <p className="text-[11px] text-emerald-700 font-medium">
+                          Instant hospital pass
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1207,9 +1651,21 @@ export const CitizenEmergencyApp: React.FC = () => {
                 <Navigation className="w-4 h-4 fill-white rotate-45" />
                 <span>Start Navigation Now</span>
               </button>
+
+              <button
+                onClick={() => {
+                  setIsQrModalOpen(false);
+                  handleOpenReportModal();
+                }}
+                className="px-4 py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>AI Report</span>
+              </button>
+
               <button
                 onClick={() => setIsQrModalOpen(false)}
-                className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
+                className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
               >
                 Close
               </button>
@@ -1217,6 +1673,17 @@ export const CitizenEmergencyApp: React.FC = () => {
 
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* AI GENERATED MEDICAL REPORT MODAL */}
+      {/* ========================================================================= */}
+      {currentReportData && (
+        <PatientReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          report={currentReportData}
+        />
       )}
 
     </div>

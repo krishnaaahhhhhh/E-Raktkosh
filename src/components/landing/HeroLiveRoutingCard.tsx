@@ -32,7 +32,7 @@ export const HeroLiveRoutingCard: React.FC = () => {
     <div
       id="hero-live-routing-card"
       onClick={handleNavigateClick}
-      className="w-full max-w-2xl bg-white rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-200/80 overflow-hidden cursor-pointer hover:shadow-red-500/10 transition-all group select-none"
+      className="w-full bg-white rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/80 overflow-hidden cursor-pointer hover:shadow-2xl hover:shadow-red-500/10 transition-all group select-none"
       title="Click to launch live emergency navigation"
     >
       <div className="grid grid-cols-1 sm:grid-cols-12 min-h-[380px]">

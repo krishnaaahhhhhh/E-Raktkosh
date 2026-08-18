@@ -40,9 +40,12 @@ import {
   Volume2,
   VolumeX,
   Share2,
-  Info
+  Info,
+  FileText
 } from 'lucide-react';
 import { playTactileClick, playConfirmChime, playCodeRedAlert, playCodeAmberAlert } from '../../lib/audio';
+import { PatientReportModal, PatientEmergencyReportData } from '../citizen/PatientReportModal';
+import { io } from 'socket.io-client';
 
 // Types for Hospital Reception Command Center
 interface DoctorItem {
@@ -72,6 +75,8 @@ interface PatientQueueItem {
   assignedDoctor?: string;
   admittedAt?: string;
   vitals?: { bp: string; spo2: number; hr: number };
+  clinicalNotes?: string;
+  hasAiReport?: boolean;
 }
 
 interface StretcherZone {
@@ -211,85 +216,9 @@ export const HospitalReceptionDashboard: React.FC = () => {
     }
   ]);
 
-  // 3. In-Queue & In-Transit Live Tracker
+  // 3. In-Queue & In-Transit Live Tracker (Clean state - populated exclusively by real submitted/dispatched AI triage reports)
   const [trackerTab, setTrackerTab] = useState<'in_queue' | 'in_transit'>('in_queue');
-  const [patients, setPatients] = useState<PatientQueueItem[]>([
-    {
-      id: 'pt-1',
-      caseId: 'TNX-2024-1258',
-      ageGender: '32Y / Male',
-      patientName: 'Rohan Sharma',
-      type: 'Road Traffic Accident',
-      etaMinutes: 12,
-      status: 'In Queue',
-      priority: 'TRAUMA RED',
-      ambulanceId: 'UP-78-AMB-101',
-      lat: 26.852,
-      lng: 80.938,
-      conditionCategory: 'trauma',
-      vitals: { bp: '85/55', spo2: 88, hr: 132 }
-    },
-    {
-      id: 'pt-2',
-      caseId: 'TNX-2024-1259',
-      ageGender: '26Y / Female',
-      patientName: 'Pooja Verma',
-      type: 'Fall Injury',
-      etaMinutes: 18,
-      status: 'In Queue',
-      priority: 'TRAUMA RED',
-      ambulanceId: 'UP-78-AMB-204',
-      lat: 26.839,
-      lng: 80.952,
-      conditionCategory: 'trauma',
-      vitals: { bp: '100/65', spo2: 93, hr: 110 }
-    },
-    {
-      id: 'pt-3',
-      caseId: 'TNX-2024-1260',
-      ageGender: '45Y / Male',
-      patientName: 'Anil Kumar Gupta',
-      type: 'Chest Pain',
-      etaMinutes: 25,
-      status: 'In Queue',
-      priority: 'YELLOW',
-      ambulanceId: 'UP-78-AMB-309',
-      lat: 26.865,
-      lng: 80.925,
-      conditionCategory: 'cardiac',
-      vitals: { bp: '165/100', spo2: 95, hr: 104 }
-    },
-    {
-      id: 'pt-4',
-      caseId: 'TNX-2024-1261',
-      ageGender: '60Y / Female',
-      patientName: 'Kamla Devi',
-      type: 'Breathlessness',
-      etaMinutes: 28,
-      status: 'In Queue',
-      priority: 'YELLOW',
-      ambulanceId: 'UP-78-AMB-412',
-      lat: 26.828,
-      lng: 80.968,
-      conditionCategory: 'respiratory',
-      vitals: { bp: '135/88', spo2: 89, hr: 98 }
-    },
-    {
-      id: 'pt-5',
-      caseId: 'TNX-2024-1262',
-      ageGender: '10Y / Male',
-      patientName: 'Aarav Dixit',
-      type: 'Fever & Dehydration',
-      etaMinutes: 35,
-      status: 'In Queue',
-      priority: 'GREEN',
-      ambulanceId: 'UP-78-AMB-515',
-      lat: 26.872,
-      lng: 80.912,
-      conditionCategory: 'pediatric',
-      vitals: { bp: '105/70', spo2: 98, hr: 92 }
-    }
-  ]);
+  const [patients, setPatients] = useState<PatientQueueItem[]>([]);
 
   // In Transit Patients
   const inTransitPatients = useMemo(() => {
@@ -374,6 +303,252 @@ export const HospitalReceptionDashboard: React.FC = () => {
   const [activeModal, setActiveModal] = useState<
     'doctor_roster' | 'live_map' | 'stretcher_dispatch' | 'emergency_override' | 'new_patient' | 'bed_manager' | null
   >(null);
+
+  // Selected Patient AI Clinical Report for Modal inspection
+  const [selectedAiReport, setSelectedAiReport] = useState<PatientEmergencyReportData | null>(null);
+
+  // Dedicated Ram Singh (SA-1047) Stretcher Live Socket Status
+  const [ramSinghStatus, setRamSinghStatus] = useState<{
+    statusText: string;
+    step: 'idle' | 'moving' | 'transporting' | 'completed';
+    lastUpdated: string;
+    dispatchId?: string;
+  }>({
+    statusText: 'Duty Active (Shade Shelter – Emergency Block A)',
+    step: 'idle',
+    lastUpdated: 'Just now'
+  });
+
+  // Real-time Socket.io listener for direct AI report & emergency dispatches transferred from citizens/ambulances
+  useEffect(() => {
+    // Initial fetch of existing dispatches so GSVM Medical College loads all previous and new incoming requests
+    const fetchExistingDispatches = async () => {
+      try {
+        const res = await fetch('/api/dispatches');
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            const mappedPatients: PatientQueueItem[] = list.map((disp: any) => ({
+              id: `pt-${disp.dispatchId || disp._id || Date.now()}`,
+              caseId: disp.dispatchId || `TNX-2024-${Math.floor(1265 + Math.random() * 100)}`,
+              patientName: disp.patientName || disp.patient?.fullName || 'Emergency Inbound Patient',
+              ageGender: `${disp.patientAge || disp.patient?.age || 35}Y / ${disp.patientGender || disp.patient?.gender || 'Male'}`,
+              type: disp.symptomCategory || disp.patient?.symptomCategory || 'Emergency Triage',
+              etaMinutes: disp.etaMinutes || 6,
+              status: disp.status || 'In Queue',
+              priority: disp.severity === 'RED' ? 'TRAUMA RED' : disp.severity === 'YELLOW' ? 'YELLOW' : 'GREEN',
+              ambulanceId: disp.ambulanceId || 'CITIZEN-EMERGENCY',
+              lat: disp.originCoords?.lat || 26.4712,
+              lng: disp.originCoords?.lng || 80.3211,
+              conditionCategory: (disp.symptomCategory || disp.patient?.symptomCategory || '').toLowerCase().includes('trauma')
+                ? 'trauma'
+                : (disp.symptomCategory || disp.patient?.symptomCategory || '').toLowerCase().includes('cardiac')
+                ? 'cardiac'
+                : (disp.symptomCategory || disp.patient?.symptomCategory || '').toLowerCase().includes('respiratory')
+                ? 'respiratory'
+                : 'general',
+              vitals: {
+                bp: disp.vitals?.bp || disp.patient?.vitals?.bp || '120/80',
+                spo2: disp.vitals?.spo2 || disp.patient?.vitals?.spo2 || 96,
+                hr: disp.vitals?.heartRate || disp.patient?.vitals?.heartRate || 82
+              },
+              clinicalNotes: disp.clinicalPriorityNotes || disp.patient?.clinicalPriorityNotes || 'Directly transferred from citizen AI triage.',
+              hasAiReport: true
+            }));
+
+            setPatients((prev) => {
+              const existingIds = new Set(mappedPatients.map((m) => m.caseId));
+              const nonDuplicatePrev = prev.filter((p) => !existingIds.has(p.caseId));
+              return [...mappedPatients, ...nonDuplicatePrev];
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Dispatches initial fetch error', err);
+      }
+    };
+
+    fetchExistingDispatches();
+
+    const socket = io({
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join:hospital', { hospitalId: 'gsvm-kanpur' });
+      socket.emit('join:hospital', { hospitalId: 'gsvm' });
+    });
+
+    const handleInboundDispatch = (dispatch: any) => {
+      if (!dispatch) return;
+      
+      const newPatient: PatientQueueItem = {
+        id: `pt-${dispatch.dispatchId || Date.now()}`,
+        caseId: dispatch.dispatchId || `TNX-2024-${Math.floor(1265 + Math.random() * 100)}`,
+        patientName: dispatch.patientName || dispatch.patient?.fullName || 'Emergency Inbound Patient',
+        ageGender: `${dispatch.patientAge || dispatch.patient?.age || 35}Y / ${dispatch.patientGender || dispatch.patient?.gender || 'Male'}`,
+        type: dispatch.symptomCategory || dispatch.patient?.symptomCategory || 'Emergency Triage',
+        etaMinutes: dispatch.etaMinutes || 6,
+        status: dispatch.status || 'In Queue',
+        priority: dispatch.severity === 'RED' ? 'TRAUMA RED' : dispatch.severity === 'YELLOW' ? 'YELLOW' : 'GREEN',
+        ambulanceId: dispatch.ambulanceId || 'CITIZEN-EMERGENCY',
+        lat: dispatch.originCoords?.lat || 26.4712,
+        lng: dispatch.originCoords?.lng || 80.3211,
+        conditionCategory: (dispatch.symptomCategory || dispatch.patient?.symptomCategory || '').toLowerCase().includes('trauma')
+          ? 'trauma'
+          : (dispatch.symptomCategory || dispatch.patient?.symptomCategory || '').toLowerCase().includes('cardiac')
+          ? 'cardiac'
+          : (dispatch.symptomCategory || dispatch.patient?.symptomCategory || '').toLowerCase().includes('respiratory')
+          ? 'respiratory'
+          : 'general',
+        vitals: {
+          bp: dispatch.vitals?.bp || dispatch.patient?.vitals?.bp || '120/80',
+          spo2: dispatch.vitals?.spo2 || dispatch.patient?.vitals?.spo2 || 96,
+          hr: dispatch.vitals?.heartRate || dispatch.patient?.vitals?.heartRate || 82
+        },
+        clinicalNotes: dispatch.clinicalPriorityNotes || dispatch.patient?.clinicalPriorityNotes || 'Directly transferred from citizen AI triage.',
+        hasAiReport: true
+      };
+
+      // Prepend to live patients queue
+      setPatients((prev) => {
+        const filtered = prev.filter((p) => p.caseId !== newPatient.caseId);
+        return [newPatient, ...filtered];
+      });
+
+      // Auto-decrement bed count upon receiving inbound critical case
+      setBedCapacity((prev) => ({
+        ...prev,
+        icu: {
+          ...prev.icu,
+          occupied: Math.min(prev.icu.total, prev.icu.occupied + 1)
+        }
+      }));
+
+      // Play chime/alert
+      if (!isMuted) {
+        if (newPatient.priority === 'TRAUMA RED') {
+          playCodeRedAlert();
+        } else {
+          playConfirmChime();
+        }
+      }
+
+      // Add to recent admissions log
+      setRecentAdmissionsLog((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          text: `🚨 DIRECT TRANSFER: ${newPatient.caseId} (${newPatient.patientName}) admitted to ER. Live ICU Bed decremented.`,
+          type: 'admit'
+        },
+        ...prev.slice(0, 15)
+      ]);
+    };
+
+    // Stretcher real-time status update from Ram Singh
+    const handleStretcherStatusChanged = (data: any) => {
+      if (data && (data.attendantId === 'SA-1047' || !data.attendantId)) {
+        setRamSinghStatus({
+          statusText: data.statusText || 'Status Updated',
+          step: data.step || 'moving',
+          lastUpdated: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          dispatchId: data.dispatchId
+        });
+
+        setRecentAdmissionsLog((prev) => [
+          {
+            id: `log-${Date.now()}`,
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            text: `🛏️ STRETCHER SYNC (Ram Singh SA-1047): ${data.statusText}`,
+            type: 'stretcher'
+          },
+          ...prev.slice(0, 15)
+        ]);
+      }
+    };
+
+    // Planned Admission and Fast-Track Booking Socket Listeners
+    const handleAdmissionBooking = (booking: any) => {
+      if (!booking) return;
+      setBedCapacity((prev) => ({
+        ...prev,
+        generalWard: {
+          ...prev.generalWard,
+          occupied: Math.min(prev.generalWard.total, prev.generalWard.occupied + 1)
+        }
+      }));
+
+      setRecentAdmissionsLog((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          text: `📋 PLANNED ADMISSION: Token #${booking.bookingId || booking.token || 'ADM-BOOKED'} admitted. Bed decremented.`,
+          type: 'admit'
+        },
+        ...prev.slice(0, 15)
+      ]);
+    };
+
+    socket.on('patient:inbound_received', handleInboundDispatch);
+    socket.on('global:dispatch_update', handleInboundDispatch);
+    socket.on('stretcher:status_changed', handleStretcherStatusChanged);
+    socket.on('admission:booked', handleAdmissionBooking);
+    socket.on('admission:new', handleAdmissionBooking);
+
+    return () => {
+      socket.off('patient:inbound_received', handleInboundDispatch);
+      socket.off('global:dispatch_update', handleInboundDispatch);
+      socket.off('stretcher:status_changed', handleStretcherStatusChanged);
+      socket.off('admission:booked', handleAdmissionBooking);
+      socket.off('admission:new', handleAdmissionBooking);
+      socket.disconnect();
+    };
+  }, [isMuted]);
+
+  // Dispatch Stretcher Specifically to Ram Singh (SA-1047)
+  const handleDispatchToRamSingh = (patient?: PatientQueueItem) => {
+    playTactileClick();
+    const socket = io({ transports: ['websocket', 'polling'] });
+    
+    const payload = {
+      dispatchId: `disp-${Date.now()}`,
+      attendantId: 'SA-1047',
+      attendantName: 'Ram Singh',
+      patientName: patient?.patientName || 'Emergency Inbound Patient',
+      caseId: patient?.caseId || `TNX-2024-${Math.floor(1200 + Math.random() * 100)}`,
+      hospitalId: 'gsvm-kanpur',
+      hospitalName: 'GSVM Medical College, Kanpur',
+      destination: 'Gate 2 – Main Entrance',
+      targetBed: 'ICU Bed #4 (Ventilator Bay)',
+      reason: patient ? `${patient.type} Transfer` : 'Emergency Patient Transfer',
+      priority: patient?.priority === 'TRAUMA RED' ? 'Critical' : 'High',
+      etaRequired: 'Within 2 Minutes',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    socket.emit('stretcher:dispatch', payload);
+    
+    setRamSinghStatus({
+      statusText: `Dispatched to Gate 2 for ${payload.patientName} (Awaiting Ram Singh's Acceptance)`,
+      step: 'moving',
+      lastUpdated: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      dispatchId: payload.dispatchId
+    });
+
+    setRecentAdmissionsLog((prev) => [
+      {
+        id: `log-${Date.now()}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text: `⚡ TARGETED DISPATCH: Sent to Ram Singh (SA-1047) for ${payload.patientName} at Gate 2 via Socket.io.`,
+        type: 'stretcher'
+      },
+      ...prev.slice(0, 15)
+    ]);
+
+    if (!isMuted) playConfirmChime();
+  };
 
   // ==========================================
   // CORE ENGINE: AUTOMATIC BED DEDUCTION LOGIC
@@ -959,543 +1134,725 @@ export const HospitalReceptionDashboard: React.FC = () => {
         </aside>
 
         {/* ========================================================================= */}
-        {/* MAIN COMMAND DASHBOARD GRID (4 Quadrant Cards: 1, 2, 3, 4) */}
+        {/* MAIN COMMAND DASHBOARD (Prominent Live Bed Grid + Doctor Left + Live Req & Map Right + Compact Stretcher) */}
         {/* ========================================================================= */}
         <main
           id="reception-main-content"
-          className="flex-1 h-full min-h-0 overflow-y-auto p-4 lg:p-5 bg-[#070d18] grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5"
+          className="flex-1 h-full min-h-0 overflow-y-auto p-3.5 lg:p-4 bg-[#070d18] space-y-4"
         >
           {/* ===================================================================== */}
-          {/* CARD 1: Doctor Availability Roster (Top Left - 5 Cols) */}
+          {/* TOP SECTION: BIG CARDS LIVE BED GRID (ICU, Trauma Bay, Ventilators, NICU, General) */}
           {/* ===================================================================== */}
-          <div
-            id="card-1-doctor-roster"
-            className="lg:col-span-5 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl"
-          >
-            {/* Header */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-teal-500/20 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs font-bold font-mono">
-                    1
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-white tracking-tight">Doctor Availability Roster</h2>
-                    <p className="text-[11px] text-slate-400">Real-time specialist availability</p>
-                  </div>
-                </div>
+          <section id="live-bed-grid-section" className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-teal-400" />
+                  <span>Live Bed & Critical Care Grid • Real-Time Occupancy</span>
+                </h2>
               </div>
-
-              {/* Roster Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800/80">
-                      <th className="pb-2 font-semibold">Specialist</th>
-                      <th className="pb-2 font-semibold">Doctor</th>
-                      <th className="pb-2 font-semibold">Status</th>
-                      <th className="pb-2 font-semibold text-right">Available Till</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {doctorRoster.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-2 text-slate-300 font-medium text-[11px]">{item.specialist}</td>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={item.avatar}
-                              alt={item.doctor}
-                              className="w-5 h-5 rounded-full object-cover border border-slate-700 shrink-0"
-                            />
-                            <span className="text-white font-medium text-[11px]">{item.doctor}</span>
-                          </div>
-                        </td>
-                        <td className="py-2">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              item.status === 'Available'
-                                ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-800/50'
-                                : 'text-amber-400 bg-amber-950/60 border border-amber-800/50'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                item.status === 'Available' ? 'bg-emerald-400' : 'bg-amber-400'
-                              }`}
-                            ></span>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="py-2 text-right text-slate-400 font-mono text-[11px]">{item.availableTill}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                <span className="font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-emerald-400 font-semibold">
+                  Total Capacity: {bedCapacity.icu.total + bedCapacity.traumaBay.total + bedCapacity.ventilators.total + bedCapacity.nicu.total + bedCapacity.generalWard.total} Beds
+                </span>
+                <span className="font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-teal-300">
+                  Vacant: {(bedCapacity.icu.total - bedCapacity.icu.occupied) + (bedCapacity.traumaBay.total - bedCapacity.traumaBay.occupied) + (bedCapacity.ventilators.total - bedCapacity.ventilators.inUse) + (bedCapacity.nicu.total - bedCapacity.nicu.occupied) + (bedCapacity.generalWard.total - bedCapacity.generalWard.occupied)} Free
+                </span>
               </div>
             </div>
 
-            {/* Bottom Link CTA */}
-            <div className="pt-3 border-t border-slate-800/80 text-center">
-              <button
+            {/* Prominent Live Bed Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Card 1: ICU Beds */}
+              <div
+                id="bed-card-icu"
                 onClick={() => {
                   playTactileClick();
-                  setActiveModal('doctor_roster');
+                  setActiveModal('bed_manager');
                 }}
-                className="text-xs text-slate-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 transition-colors"
+                className="cursor-pointer group relative p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-teal-950/30 border border-teal-500/30 hover:border-teal-400 transition-all shadow-lg hover:shadow-teal-950/40"
               >
-                <span>View Full Doctor Roster</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ===================================================================== */}
-          {/* CARD 2: In-Queue & In-Transit Live Tracker (Top Right - 7 Cols) */}
-          {/* ===================================================================== */}
-          <div
-            id="card-2-live-tracker"
-            className="lg:col-span-7 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl"
-          >
-            <div>
-              {/* Header & Tabs */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-teal-500/20 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs font-bold font-mono">
-                    2
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-teal-300">ICU BEDS</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-teal-950 border border-teal-500/50 text-teal-300 text-[10px] font-mono font-bold">
+                    {Math.round(((bedCapacity.icu.total - bedCapacity.icu.occupied) / bedCapacity.icu.total) * 100)}% Free
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-white font-mono">
+                    {bedCapacity.icu.total - bedCapacity.icu.occupied}
+                    <span className="text-xs text-slate-400 font-normal ml-1">/ {bedCapacity.icu.total} Total</span>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-white tracking-tight">In-Queue & In-Transit Live Tracker</h2>
-                    <p className="text-[11px] text-slate-400">Ambulances & patients in real-time</p>
+                  <div className="w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 text-sm">
+                    🛏️
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      playTactileClick();
-                      setActiveModal('live_map');
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs"
-                  >
-                    <Filter className="w-3 h-3" />
-                    <span>Filter</span>
-                  </button>
-                  <button className="p-1 rounded-lg text-slate-400 hover:text-white">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Tabs: IN QUEUE (5) | IN TRANSIT (3) */}
-              <div className="flex items-center gap-2 mb-3">
-                <button
-                  onClick={() => {
-                    playTactileClick();
-                    setTrackerTab('in_queue');
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
-                    trackerTab === 'in_queue'
-                      ? 'bg-teal-950 border border-teal-500/60 text-teal-300 shadow'
-                      : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800'
-                  }`}
-                >
-                  IN QUEUE ({inQueuePatients.length})
-                </button>
-                <button
-                  onClick={() => {
-                    playTactileClick();
-                    setTrackerTab('in_transit');
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold tracking-wider uppercase transition-all ${
-                    trackerTab === 'in_transit'
-                      ? 'bg-teal-950 border border-teal-500/60 text-teal-300 shadow'
-                      : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800'
-                  }`}
-                >
-                  IN TRANSIT ({inTransitPatients.length})
-                </button>
-              </div>
-
-              {/* Split View: Table on Left, Interactive Dark Map Canvas on Right */}
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
-                {/* Table: Patients */}
-                <div className="xl:col-span-7 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800/80">
-                        <th className="pb-2 font-semibold">Patient / Case ID</th>
-                        <th className="pb-2 font-semibold">Type</th>
-                        <th className="pb-2 font-semibold">ETA / Wait</th>
-                        <th className="pb-2 font-semibold">Status</th>
-                        <th className="pb-2 font-semibold text-right">Priority</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {(trackerTab === 'in_queue' ? inQueuePatients : inTransitPatients).map((patient) => (
-                        <tr key={patient.id} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="py-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
-                                  patient.priority === 'TRAUMA RED'
-                                    ? 'bg-red-950 border border-red-600/60 text-red-400'
-                                    : patient.priority === 'YELLOW'
-                                    ? 'bg-amber-950 border border-amber-600/60 text-amber-400'
-                                    : 'bg-emerald-950 border border-emerald-600/60 text-emerald-400'
-                                }`}
-                              >
-                                🚑
-                              </div>
-                              <div>
-                                <div className="font-mono font-bold text-white text-[11px]">{patient.caseId}</div>
-                                <div className="text-[10px] text-slate-400">{patient.ageGender}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 text-slate-300 text-[11px]">{patient.type}</td>
-                          <td className="py-2.5 font-mono text-slate-200 font-semibold text-[11px]">
-                            {patient.etaMinutes} min
-                          </td>
-                          <td className="py-2.5">
-                            <span className="text-slate-400 text-[11px]">{patient.status}</span>
-                          </td>
-                          <td className="py-2.5 text-right">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase ${
-                                patient.priority === 'TRAUMA RED'
-                                  ? 'bg-red-900/60 border border-red-500/80 text-red-300'
-                                  : patient.priority === 'YELLOW'
-                                  ? 'bg-amber-900/60 border border-amber-500/80 text-amber-300'
-                                  : 'bg-emerald-900/60 border border-emerald-500/80 text-emerald-300'
-                              }`}
-                            >
-                              {patient.priority}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Right: Dark GPS Telemetry Map Graphic */}
-                <div className="xl:col-span-5 h-44 xl:h-auto rounded-xl bg-[#060c18] border border-slate-800 relative overflow-hidden flex items-center justify-center p-2 shadow-inner">
-                  {/* Subtle Grid Lines */}
+                <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className="absolute inset-0 opacity-20"
-                    style={{
-                      backgroundImage:
-                        'radial-gradient(#14b8a6 1px, transparent 1px), radial-gradient(#1e293b 1px, transparent 1px)',
-                      backgroundSize: '20px 20px',
-                      backgroundPosition: '0 0, 10px 10px'
-                    }}
+                    className="bg-gradient-to-r from-teal-400 to-emerald-400 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(bedCapacity.icu.occupied / bedCapacity.icu.total) * 100}%` }}
                   ></div>
-
-                  {/* Central Hospital Beacon */}
-                  <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative">
-                      <span className="absolute -inset-2 rounded-full bg-teal-500/20 animate-ping"></span>
-                      <span className="absolute -inset-4 rounded-full bg-teal-500/10 animate-pulse"></span>
-                      <div className="w-8 h-8 rounded-full bg-teal-600 border-2 border-teal-300 flex items-center justify-center font-bold text-white text-xs shadow-lg shadow-teal-500/50">
-                        H
-                      </div>
-                    </div>
-                    <span className="text-[9px] font-semibold text-teal-300 mt-1 bg-slate-950/80 px-1.5 py-0.5 rounded border border-teal-800">
-                      GSVM ER GATE
-                    </span>
-                  </div>
-
-                  {/* Ambulance Nodes on Radar */}
-                  {/* Node 1: Red Trauma */}
-                  <div className="absolute top-4 left-6 flex items-center gap-1">
-                    <div className="w-5 h-5 rounded-full bg-red-600/90 border border-red-300 flex items-center justify-center text-[10px] text-white animate-bounce shadow">
-                      🚑
-                    </div>
-                    <div className="bg-slate-950/90 border border-red-500/50 px-1.5 py-0.5 rounded text-[9px] text-red-300 font-mono font-bold">
-                      TNX-1258 (12m)
-                    </div>
-                  </div>
-
-                  {/* Node 2: Red Trauma */}
-                  <div className="absolute bottom-6 right-6 flex items-center gap-1">
-                    <div className="w-5 h-5 rounded-full bg-red-600/90 border border-red-300 flex items-center justify-center text-[10px] text-white animate-pulse shadow">
-                      🚑
-                    </div>
-                    <div className="bg-slate-950/90 border border-red-500/50 px-1.5 py-0.5 rounded text-[9px] text-red-300 font-mono font-bold">
-                      TNX-1259 (18m)
-                    </div>
-                  </div>
-
-                  {/* Node 3: Yellow */}
-                  <div className="absolute bottom-4 left-10">
-                    <div className="w-4 h-4 rounded-full bg-amber-500 border border-amber-200 flex items-center justify-center text-[8px] text-white">
-                      🚑
-                    </div>
-                  </div>
-
-                  {/* Node 4: Green */}
-                  <div className="absolute top-12 right-12">
-                    <div className="w-4 h-4 rounded-full bg-emerald-500 border border-emerald-200 flex items-center justify-center text-[8px] text-white">
-                      🚑
-                    </div>
-                  </div>
-
-                  {/* Zoom Controls on map */}
-                  <div className="absolute bottom-2 right-2 flex flex-col gap-1 bg-slate-900/90 border border-slate-700 rounded p-0.5">
-                    <button className="w-4 h-4 flex items-center justify-center text-slate-300 hover:text-white text-[10px] font-bold">
-                      +
-                    </button>
-                    <button className="w-4 h-4 flex items-center justify-center text-slate-300 hover:text-white text-[10px] font-bold">
-                      -
-                    </button>
-                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Occupied: <strong className="text-slate-200">{bedCapacity.icu.occupied}</strong></span>
+                  <span className="text-emerald-400 font-semibold">{bedCapacity.icu.total - bedCapacity.icu.occupied} Ready</span>
                 </div>
               </div>
-            </div>
 
-            {/* Bottom Link CTA */}
-            <div className="pt-3 border-t border-slate-800/80 text-center mt-2">
-              <button
+              {/* Card 2: ER Trauma Bay */}
+              <div
+                id="bed-card-trauma"
                 onClick={() => {
                   playTactileClick();
-                  setActiveModal('live_map');
+                  setActiveModal('bed_manager');
                 }}
-                className="text-xs text-slate-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 transition-colors"
+                className="cursor-pointer group relative p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-red-950/30 border border-red-500/40 hover:border-red-400 transition-all shadow-lg hover:shadow-red-950/40"
               >
-                <span>View Live Tracker Map</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ===================================================================== */}
-          {/* CARD 3: ₹500 Token Booking (Bottom Left - 5 Cols) */}
-          {/* ===================================================================== */}
-          <div
-            id="card-3-token-booking"
-            className="lg:col-span-5 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl"
-          >
-            <div>
-              {/* Header */}
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-6 h-6 rounded-full bg-teal-500/20 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs font-bold font-mono">
-                  3
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-red-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                    ER TRAUMA BAY
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-red-950 border border-red-500/50 text-red-300 text-[10px] font-mono font-bold">
+                    PRIORITY
+                  </span>
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold text-white tracking-tight">₹500 Token Booking</h2>
-                  <p className="text-[11px] text-slate-400">Fast-track emergency care token</p>
-                </div>
-              </div>
-
-              {/* Token Details Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {/* Left: Token Amount Card */}
-                <div className="p-3 rounded-xl bg-gradient-to-br from-slate-900 to-teal-950/40 border border-teal-800/50 flex flex-col justify-between shadow-md">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOKEN AMOUNT</span>
-                    <div className="text-2xl font-extrabold text-teal-300 mt-1 font-mono">₹ 500</div>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-teal-950 border border-teal-600/60 text-teal-400 text-[10px] font-semibold">
-                      Cashless Ready
-                    </span>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-red-300 font-mono">
+                    {bedCapacity.traumaBay.total - bedCapacity.traumaBay.occupied}
+                    <span className="text-xs text-slate-400 font-normal ml-1">/ {bedCapacity.traumaBay.total} Total</span>
                   </div>
-
-                  {/* Card Graphic */}
-                  <div className="mt-3 flex items-center justify-end text-teal-500/40">
-                    <CreditCard className="w-9 h-9" />
+                  <div className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 text-sm">
+                    🚨
                   </div>
                 </div>
-
-                {/* Right: Current Token Details */}
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between text-xs">
-                  <div className="space-y-1.5">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase">CURRENT TOKEN</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-white text-xs">{currentToken.tokenNumber}</span>
-                        <span className="px-1.5 py-0.2 rounded bg-red-950 border border-red-600 text-red-300 text-[8px] font-bold">
-                          {currentToken.priority}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase">PATIENT</span>
-                      <div className="text-slate-200 font-medium text-[11px]">{currentToken.patientAgeGender}</div>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase">BOOKED BY</span>
-                      <div className="text-slate-300 text-[11px]">{currentToken.bookedBy}</div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-400">TIME: {currentToken.time}</span>
-                    <span className="text-emerald-400 font-semibold">STATUS: {currentToken.status}</span>
-                  </div>
+                <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-amber-500 to-red-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(bedCapacity.traumaBay.occupied / bedCapacity.traumaBay.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Occupied: <strong className="text-slate-200">{bedCapacity.traumaBay.occupied}</strong></span>
+                  <span className="text-red-400 font-bold">{bedCapacity.traumaBay.total - bedCapacity.traumaBay.occupied} Available</span>
                 </div>
               </div>
 
-              {/* Action Button: Generate New Token */}
-              <button
+              {/* Card 3: Ventilators */}
+              <div
+                id="bed-card-ventilators"
                 onClick={() => {
                   playTactileClick();
-                  setGenerateTokenModal(true);
+                  setActiveModal('bed_manager');
                 }}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-900/40 transition-all active:scale-[0.99]"
+                className="cursor-pointer group relative p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-blue-950/30 border border-blue-500/30 hover:border-blue-400 transition-all shadow-lg hover:shadow-blue-950/40"
               >
-                <span>Generate New Token ₹500</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-blue-300">VENTILATORS</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-blue-950 border border-blue-500/50 text-blue-300 text-[10px] font-mono font-bold">
+                    Active
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-blue-300 font-mono">
+                    {bedCapacity.ventilators.total - bedCapacity.ventilators.inUse}
+                    <span className="text-xs text-slate-400 font-normal ml-1">/ {bedCapacity.ventilators.total} Total</span>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm">
+                    💨
+                  </div>
+                </div>
+                <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-cyan-400 to-blue-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(bedCapacity.ventilators.inUse / bedCapacity.ventilators.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>In-Use: <strong className="text-slate-200">{bedCapacity.ventilators.inUse}</strong></span>
+                  <span className="text-blue-400 font-semibold">{bedCapacity.ventilators.total - bedCapacity.ventilators.inUse} Standby</span>
+                </div>
+              </div>
 
-            {/* Bottom Link CTA */}
-            <div className="pt-3 border-t border-slate-800/80 text-center mt-3">
-              <button
+              {/* Card 4: NICU Warmers */}
+              <div
+                id="bed-card-nicu"
                 onClick={() => {
                   playTactileClick();
-                  setTokenHistoryModal(true);
+                  setActiveModal('bed_manager');
                 }}
-                className="text-xs text-slate-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 transition-colors"
+                className="cursor-pointer group relative p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-purple-950/30 border border-purple-500/30 hover:border-purple-400 transition-all shadow-lg hover:shadow-purple-950/40"
               >
-                <span>View Token History</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-purple-300">NICU WARMERS</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-purple-950 border border-purple-500/50 text-purple-300 text-[10px] font-mono font-bold">
+                    Neo-Natal
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-purple-300 font-mono">
+                    {bedCapacity.nicu.total - bedCapacity.nicu.occupied}
+                    <span className="text-xs text-slate-400 font-normal ml-1">/ {bedCapacity.nicu.total} Total</span>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 text-sm">
+                    👶
+                  </div>
+                </div>
+                <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-pink-500 to-purple-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(bedCapacity.nicu.occupied / bedCapacity.nicu.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Occupied: <strong className="text-slate-200">{bedCapacity.nicu.occupied}</strong></span>
+                  <span className="text-purple-300 font-semibold">{bedCapacity.nicu.total - bedCapacity.nicu.occupied} Ready</span>
+                </div>
+              </div>
+
+              {/* Card 5: General Ward */}
+              <div
+                id="bed-card-general"
+                onClick={() => {
+                  playTactileClick();
+                  setActiveModal('bed_manager');
+                }}
+                className="cursor-pointer group relative p-3.5 rounded-2xl bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-emerald-950/30 border border-emerald-500/30 hover:border-emerald-400 transition-all shadow-lg hover:shadow-emerald-950/40"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-300">GENERAL WARD</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-950 border border-emerald-500/50 text-emerald-300 text-[10px] font-mono font-bold">
+                    Step-Down
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-emerald-300 font-mono">
+                    {bedCapacity.generalWard.total - bedCapacity.generalWard.occupied}
+                    <span className="text-xs text-slate-400 font-normal ml-1">/ {bedCapacity.generalWard.total} Total</span>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-sm">
+                    🏥
+                  </div>
+                </div>
+                <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-teal-500 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${(bedCapacity.generalWard.occupied / bedCapacity.generalWard.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Occupied: <strong className="text-slate-200">{bedCapacity.generalWard.occupied}</strong></span>
+                  <span className="text-emerald-400 font-semibold">{bedCapacity.generalWard.total - bedCapacity.generalWard.occupied} Vacant</span>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
 
           {/* ===================================================================== */}
-          {/* CARD 4: Stretcher Staff Welfare Matrix (Bottom Right - 7 Cols) */}
+          {/* MIDDLE SECTION: Doctor Card on Left (4.5 Cols) + Live Incoming Req & Radar Map on Right (7.5 Cols) */}
           {/* ===================================================================== */}
-          <div
-            id="card-4-stretcher-matrix"
-            className="lg:col-span-7 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl"
-          >
-            <div>
-              {/* Header */}
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-6 h-6 rounded-full bg-teal-500/20 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs font-bold font-mono">
-                  4
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-white tracking-tight">Stretcher Staff Welfare Matrix</h2>
-                  <p className="text-[11px] text-slate-400">Live stretcher availability & staff status</p>
-                </div>
-              </div>
-
-              {/* Metric Badges Header */}
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-slate-900/90 border border-emerald-800/40 text-center">
-                  <div className="text-[9px] uppercase font-bold text-slate-400">AVAILABLE</div>
-                  <div className="text-lg font-bold text-emerald-400 font-mono mt-0.5">{stretcherStats.available}</div>
-                </div>
-
-                <div className="p-2 rounded-xl bg-slate-900/90 border border-amber-800/40 text-center">
-                  <div className="text-[9px] uppercase font-bold text-slate-400">IN USE</div>
-                  <div className="text-lg font-bold text-amber-400 font-mono mt-0.5">{stretcherStats.inUse}</div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* ------------------------------------------------------------- */}
+            {/* LEFT SIDE: Doctor Availability Roster (Full Card with All Details) */}
+            {/* ------------------------------------------------------------- */}
+            <div
+              id="card-doctor-roster-left"
+              className="lg:col-span-5 xl:col-span-4 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl space-y-3"
+            >
+              <div>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-teal-500/20 border border-teal-500/50 flex items-center justify-center text-teal-300 text-xs font-bold font-mono">
+                      <Stethoscope className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-white tracking-tight">Doctor Availability Roster</h2>
+                      <p className="text-[10px] text-slate-400">On-duty specialists & critical departments</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-teal-950/80 border border-teal-600/50 text-teal-300 font-mono text-[10px] font-bold">
+                    {doctorRoster.filter(d => d.status === 'Available').length} Active
+                  </span>
                 </div>
 
-                <div className="p-2 rounded-xl bg-slate-900/90 border border-red-800/40 text-center">
-                  <div className="text-[9px] uppercase font-bold text-slate-400">IN MAINTENANCE</div>
-                  <div className="text-lg font-bold text-red-400 font-mono mt-0.5">{stretcherStats.inMaintenance}</div>
-                </div>
-
-                <div className="p-2 rounded-xl bg-slate-900/90 border border-teal-800/40 text-center">
-                  <div className="text-[9px] uppercase font-bold text-slate-400">STAFF ON DUTY</div>
-                  <div className="text-lg font-bold text-teal-400 font-mono mt-0.5">{stretcherStats.staffOnDuty}</div>
-                </div>
-              </div>
-
-              {/* Split: Stretcher Zones Table + Active Staff */}
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
-                {/* Zone Breakdown Table */}
-                <div className="xl:col-span-8 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800/80">
-                        <th className="pb-1.5 font-semibold">Stretcher Zone</th>
-                        <th className="pb-1.5 font-semibold text-center">Available</th>
-                        <th className="pb-1.5 font-semibold text-center">In Use</th>
-                        <th className="pb-1.5 font-semibold text-center">Staff</th>
-                        <th className="pb-1.5 font-semibold text-right">Last Update</th>
-                        <th className="pb-1.5 font-semibold text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {stretcherZones.map((z) => (
-                        <tr key={z.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="py-2 text-slate-200 font-medium text-[11px]">{z.zone}</td>
-                          <td className="py-2 text-center text-emerald-400 font-bold font-mono text-[11px]">
-                            {z.available}
-                          </td>
-                          <td className="py-2 text-center text-amber-400 font-bold font-mono text-[11px]">{z.inUse}</td>
-                          <td className="py-2 text-center text-teal-300 font-semibold font-mono text-[11px]">
-                            {z.staffAssigned}
-                          </td>
-                          <td className="py-2 text-right text-slate-400 font-mono text-[10px]">{z.lastUpdate}</td>
-                          <td className="py-2 text-right">
-                            <button
-                              onClick={() => handleDispatchStretcher(z.id)}
-                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-teal-900 border border-slate-700 text-teal-300 text-[10px] transition-colors"
-                            >
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Right: Active Staff On Duty List */}
-                <div className="xl:col-span-4 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between text-xs">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-2">ACTIVE STAFF ON DUTY</div>
-                    <div className="space-y-1.5">
-                      {activeStaffList.map((staff) => (
-                        <div key={staff.id} className="flex items-center justify-between py-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <img
-                              src={staff.avatar}
-                              alt={staff.name}
-                              className="w-5 h-5 rounded-full object-cover border border-slate-700 shrink-0"
-                            />
-                            <div>
-                              <div className="text-[11px] font-medium text-white">{staff.name}</div>
-                              <div className="text-[9px] text-slate-400">{staff.role}</div>
-                            </div>
+                {/* Full Doctor Roster List */}
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  {doctorRoster.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/40 transition-all flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={item.avatar}
+                          alt={item.doctor}
+                          className="w-8 h-8 rounded-full object-cover border border-slate-700 shrink-0 group-hover:border-teal-400 transition-colors"
+                        />
+                        <div>
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>{item.doctor}</span>
                           </div>
-                          <span className="px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-800/60 text-emerald-400 text-[9px] font-semibold">
-                            {staff.status}
-                          </span>
+                          <div className="text-[10px] text-teal-400 font-medium">{item.specialist} • <span className="text-slate-400">{item.dept || 'Main ER'}</span></div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <button
-                    onClick={() => {
-                      playTactileClick();
-                      setActiveModal('stretcher_dispatch');
-                    }}
-                    className="mt-2 text-[10px] text-center text-slate-400 hover:text-teal-300 font-medium block transition-colors"
-                  >
-                    View All Staff
-                  </button>
+                      <div className="text-right">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            item.status === 'Available'
+                              ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-800/50'
+                              : 'text-amber-400 bg-amber-950/60 border border-amber-800/50'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              item.status === 'Available' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                            }`}
+                          ></span>
+                          {item.status}
+                        </span>
+                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">Till {item.availableTill}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Big Bottom Action: Dispatch Stretcher to Gate */}
-              <button
-                onClick={() => handleDispatchStretcher('zone-1')}
-                className="mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 transition-all active:scale-[0.99]"
-              >
-                <span>🛏️ Dispatch Stretcher to Gate</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {/* Bottom Quick Action: Full Roster & Token Integration */}
+              <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    playTactileClick();
+                    setActiveModal('doctor_roster');
+                  }}
+                  className="text-xs text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-1 transition-colors"
+                >
+                  <span>View Full Specialist Roster</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    playTactileClick();
+                    setTokenHistoryModal(true);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-mono"
+                >
+                  ₹500 Tokens
+                </button>
+              </div>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* RIGHT SIDE: Live Incoming Requests + Interactive Map View (7.5 Cols) */}
+            {/* ------------------------------------------------------------- */}
+            <div
+              id="card-live-requests-map-right"
+              className="lg:col-span-7 xl:col-span-8 bg-[#0a1324] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl space-y-3"
+            >
+              <div>
+                {/* Header & Tabs */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-300 text-xs font-bold font-mono">
+                      🚑
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
+                        <span>Live Inbound Requests & Radar Map</span>
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                      </h2>
+                      <p className="text-[10px] text-slate-400">GSVM Medical College Kanpur Emergency Influx</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Tabs: IN QUEUE | IN TRANSIT */}
+                    <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => {
+                          playTactileClick();
+                          setTrackerTab('in_queue');
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                          trackerTab === 'in_queue'
+                            ? 'bg-teal-950 border border-teal-500/60 text-teal-300'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        IN QUEUE ({inQueuePatients.length})
+                      </button>
+                      <button
+                        onClick={() => {
+                          playTactileClick();
+                          setTrackerTab('in_transit');
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                          trackerTab === 'in_transit'
+                            ? 'bg-teal-950 border border-teal-500/60 text-teal-300'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        IN TRANSIT ({inTransitPatients.length})
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        playTactileClick();
+                        setActiveModal('live_map');
+                      }}
+                      className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-teal-300 hover:text-white text-[10px] font-semibold flex items-center gap-1"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>Full Map</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Split: Live Patients Table (Left) + Interactive Dark GPS Canvas (Right) */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
+                  {/* Table of Inbound Patients */}
+                  <div className="xl:col-span-7 overflow-x-auto max-h-[350px] overflow-y-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="sticky top-0 bg-[#0a1324] z-10">
+                        <tr className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800/80">
+                          <th className="pb-1.5 font-semibold">Patient / Case ID</th>
+                          <th className="pb-1.5 font-semibold">Emergency</th>
+                          <th className="pb-1.5 font-semibold">ETA</th>
+                          <th className="pb-1.5 font-semibold">Triage</th>
+                          <th className="pb-1.5 font-semibold text-right">Dispatch Stretcher / AI Report</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {((trackerTab === 'in_queue' ? inQueuePatients : inTransitPatients).length === 0) ? (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center">
+                              <div className="flex flex-col items-center justify-center text-slate-500 space-y-2">
+                                <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 text-lg">
+                                  📋
+                                </div>
+                                <div className="text-xs font-bold text-slate-400">
+                                  No Active {trackerTab === 'in_queue' ? 'In-Queue' : 'In-Transit'} Dispatches
+                                </div>
+                                <p className="text-[10px] text-slate-500 max-w-xs">
+                                  Reports submitted from Citizen Triage (/patient) or Paramedics will appear here instantly in real-time.
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          (trackerTab === 'in_queue' ? inQueuePatients : inTransitPatients).map((patient) => (
+                            <tr key={patient.id} className="hover:bg-slate-800/40 transition-colors">
+                              <td className="py-2">
+                                <div className="flex items-center gap-1.5">
+                                  <div
+                                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                      patient.priority === 'TRAUMA RED'
+                                        ? 'bg-red-950 border border-red-600/60 text-red-400'
+                                        : patient.priority === 'YELLOW'
+                                        ? 'bg-amber-950 border border-amber-600/60 text-amber-400'
+                                        : 'bg-emerald-950 border border-emerald-600/60 text-emerald-400'
+                                    }`}
+                                  >
+                                    🚑
+                                  </div>
+                                  <div>
+                                    <div className="font-mono font-bold text-white text-[11px] flex items-center gap-1">
+                                      <span>{patient.caseId}</span>
+                                      {patient.hasAiReport && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-medium">{patient.patientName} • {patient.ageGender}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-2 text-slate-300 text-[11px]">
+                                <div>{patient.type}</div>
+                                <div className="text-[9px] font-mono text-slate-500">SpO2: {patient.vitals?.spo2 || 94}%</div>
+                              </td>
+                              <td className="py-2 font-mono text-amber-300 font-semibold text-[11px]">
+                                {patient.etaMinutes}m
+                              </td>
+                              <td className="py-2">
+                                <span
+                                  className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase ${
+                                    patient.priority === 'TRAUMA RED'
+                                      ? 'bg-red-900/60 border border-red-500/80 text-red-300'
+                                      : patient.priority === 'YELLOW'
+                                      ? 'bg-amber-900/60 border border-amber-500/80 text-amber-300'
+                                      : 'bg-emerald-900/60 border border-emerald-500/80 text-emerald-300'
+                                  }`}
+                                >
+                                  {patient.priority}
+                                </span>
+                              </td>
+                              <td className="py-2 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {/* Dedicated Dispatch Stretcher to Ram Singh Button */}
+                                  <button
+                                    onClick={() => handleDispatchToRamSingh(patient)}
+                                    className="px-2 py-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-[10px] rounded-lg inline-flex items-center gap-1 transition-all shadow-sm shadow-orange-950/40 cursor-pointer active:scale-95"
+                                    title="Dispatch Stretcher specifically to Ram Singh (SA-1047) via Socket.io"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                                    <span>Dispatch Stretcher</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      playTactileClick();
+                                      setSelectedAiReport({
+                                        reportId: `REP-${patient.caseId}`,
+                                        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                                        patientName: patient.patientName,
+                                        patientAge: patient.ageGender.split('/')[0].trim() || '32Y',
+                                        gender: patient.ageGender.includes('Female') ? 'Female' : 'Male',
+                                        inputMethod: 'AI Voice Triage',
+                                        emergencyCategory: patient.type,
+                                        symptomDuration: '<30 mins',
+                                        consciousness: patient.priority === 'TRAUMA RED' ? 'Drowsy' : 'Alert',
+                                        vitals: {
+                                          spo2: patient.vitals?.spo2 || 94,
+                                          pulse: patient.vitals?.hr || 98,
+                                          bp: patient.vitals?.bp || '130/85'
+                                        },
+                                        medicalRedFlags: [
+                                          patient.type,
+                                          patient.priority === 'TRAUMA RED' ? 'Severe trauma / acute distress' : 'Urgent ER attention required',
+                                          'Transferred directly to GSVM Reception Desk'
+                                        ],
+                                        allergies: 'None recorded',
+                                        hospital: {
+                                          id: 'gsvm-kanpur',
+                                          name: selectedHospital,
+                                          address: 'GSVM Medical College Campus, Swaroop Nagar, Kanpur, UP 208002',
+                                          travelTime: `${patient.etaMinutes} mins`,
+                                          travelTimeMinutes: patient.etaMinutes,
+                                          lat: 26.4712,
+                                          lng: 80.3211,
+                                          availableIcuBeds: bedCapacity.icu.total - bedCapacity.icu.occupied,
+                                          availableVentilators: bedCapacity.ventilators.total - bedCapacity.ventilators.inUse,
+                                          verifiedStatus: 'Govt Medical College ER (ABDM Verified)'
+                                        } as any,
+                                        userLocationName: 'Kanpur Urban Emergency Zone',
+                                        qrTokenId: patient.caseId,
+                                        severityLevel: patient.priority === 'TRAUMA RED'
+                                          ? 'RED (Critical / Immediate)'
+                                          : 'YELLOW (Urgent)',
+                                        clinicalSummary: patient.clinicalNotes || `Emergency patient ${patient.patientName} presenting with acute ${patient.type}. Pre-arrival admission and bed assignment verified on live ER console.`,
+                                        aiSuggestedActions: [
+                                          'Prepare assigned ER Trauma / Observation bed',
+                                          'Dispatch stretcher bearer to Gate 1 ramp',
+                                          'Paramedic handover & vitals verification upon arrival'
+                                        ]
+                                      });
+                                    }}
+                                    className="px-2 py-1 bg-teal-950/90 hover:bg-teal-900 border border-teal-500/60 text-teal-300 font-bold text-[10px] rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="View full AI Clinical Report & PDF"
+                                  >
+                                    <FileText className="w-3 h-3 text-teal-400" />
+                                    <span>Report</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Dark Map Canvas with Live Telemetry Nodes */}
+                  <div className="xl:col-span-5 h-48 xl:h-[350px] rounded-xl bg-[#060c18] border border-slate-800 relative overflow-hidden flex items-center justify-center p-2 shadow-inner">
+                    {/* Background Radar Grid */}
+                    <div
+                      className="absolute inset-0 opacity-25"
+                      style={{
+                        backgroundImage:
+                          'radial-gradient(#14b8a6 1px, transparent 1px), radial-gradient(#1e293b 1px, transparent 1px)',
+                        backgroundSize: '20px 20px',
+                        backgroundPosition: '0 0, 10px 10px'
+                      }}
+                    ></div>
+
+                    {/* Concentric Radar Rings */}
+                    <div className="absolute w-44 h-44 rounded-full border border-teal-500/20 animate-ping"></div>
+                    <div className="absolute w-64 h-64 rounded-full border border-teal-500/15"></div>
+
+                    {/* Central Hospital Beacon */}
+                    <div className="relative z-10 flex flex-col items-center">
+                      <div className="relative">
+                        <span className="absolute -inset-2 rounded-full bg-teal-500/30 animate-pulse"></span>
+                        <div className="w-9 h-9 rounded-full bg-teal-600 border-2 border-teal-300 flex items-center justify-center font-bold text-white text-xs shadow-lg shadow-teal-500/50">
+                          🏥
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-bold text-teal-300 mt-1 bg-slate-950/90 px-2 py-0.5 rounded border border-teal-700/80 font-mono">
+                        GSVM KANPUR ER
+                      </span>
+                    </div>
+
+                    {/* Ambulance Nodes on Radar */}
+                    <div className="absolute top-4 left-6 flex items-center gap-1 z-10">
+                      <div className="w-5 h-5 rounded-full bg-red-600 border border-red-300 flex items-center justify-center text-[10px] text-white animate-bounce shadow">
+                        🚑
+                      </div>
+                      <div className="bg-slate-950/90 border border-red-500/60 px-1.5 py-0.5 rounded text-[9px] text-red-300 font-mono font-bold">
+                        TNX-1258 (12m)
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-6 right-6 flex items-center gap-1 z-10">
+                      <div className="w-5 h-5 rounded-full bg-red-600 border border-red-300 flex items-center justify-center text-[10px] text-white animate-pulse shadow">
+                        🚑
+                      </div>
+                      <div className="bg-slate-950/90 border border-red-500/60 px-1.5 py-0.5 rounded text-[9px] text-red-300 font-mono font-bold">
+                        TNX-1259 (18m)
+                      </div>
+                    </div>
+
+                    <div className="absolute top-10 right-8 z-10">
+                      <div className="w-4 h-4 rounded-full bg-amber-500 border border-amber-200 flex items-center justify-center text-[8px] text-white">
+                        🚑
+                      </div>
+                    </div>
+
+                    {/* Map Zoom & Controls */}
+                    <div className="absolute bottom-2 right-2 flex flex-col gap-1 bg-slate-900/90 border border-slate-700 rounded p-0.5 z-10">
+                      <button
+                        onClick={() => setActiveModal('live_map')}
+                        className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-white text-[10px] font-bold"
+                        title="Expand Map"
+                      >
+                        ⛶
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Quick Summary */}
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">
+                  Active Dispatches: <strong className="text-white font-mono">{patients.length} Inbound</strong>
+                </span>
+                <button
+                  onClick={() => {
+                    playTactileClick();
+                    setActiveModal('live_map');
+                  }}
+                  className="text-xs text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-1"
+                >
+                  <span>Open Full Screen GPS Grid</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* ===================================================================== */}
+          {/* BOTTOM SECTION: COMPACT STRETCHER STAFF WELFARE & RAM SINGH DISPATCH */}
+          {/* ===================================================================== */}
+          <section
+            id="compact-stretcher-staff-section"
+            className="bg-[#0a1324] border border-slate-800/90 rounded-2xl p-3.5 shadow-xl space-y-3"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-300 text-xs font-bold font-mono">
+                  🛏️
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Stretcher Attendant Live Dispatch • Ram Singh (SA-1047)
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Targeted real-time Socket.io dispatch channel directly to Ram Singh's phone</p>
+                </div>
+              </div>
+
+              {/* Compact Metrics Strip */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="px-2 py-1 rounded-lg bg-slate-900/90 border border-emerald-800/40 text-[10px]">
+                  <span className="text-slate-400 mr-1">Available:</span>
+                  <strong className="text-emerald-400 font-mono">{stretcherStats.available}</strong>
+                </div>
+                <div className="px-2 py-1 rounded-lg bg-slate-900/90 border border-amber-800/40 text-[10px]">
+                  <span className="text-slate-400 mr-1">In Use:</span>
+                  <strong className="text-amber-400 font-mono">{stretcherStats.inUse}</strong>
+                </div>
+                <div className="px-2 py-1 rounded-lg bg-slate-900/90 border border-teal-800/40 text-[10px]">
+                  <span className="text-slate-400 mr-1">Staff On Duty:</span>
+                  <strong className="text-teal-400 font-mono">{stretcherStats.staffOnDuty}</strong>
+                </div>
+                <button
+                  onClick={() => handleDispatchToRamSingh()}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-600 via-amber-500 to-orange-600 hover:from-orange-500 hover:to-amber-400 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-md shadow-orange-950/50 active:scale-95 transition-all cursor-pointer"
+                >
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                  <span>⚡ Dispatch to Ram Singh (SA-1047)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Prominent Live Socket Status Card for Ram Singh SA-1047 */}
+            <div className="p-3 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-orange-950/20 border border-orange-500/40 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-inner">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
+                    alt="Ram Singh"
+                    className="w-10 h-10 rounded-full object-cover border-2 border-orange-400/80 shadow"
+                  />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 animate-pulse"></span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-xs">Ram Singh</span>
+                    <span className="px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/60 text-[9px] font-mono font-bold">
+                      SA-1047
+                    </span>
+                    <span className="text-[10px] text-slate-400">Emergency Stretcher Bearer</span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-orange-300 flex items-center gap-1.5 mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping"></span>
+                    <span>Live Socket Status: {ramSinghStatus.statusText}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400 font-mono">Last Update: {ramSinghStatus.lastUpdated}</span>
+                <button
+                  onClick={() => handleDispatchToRamSingh()}
+                  className="px-3 py-1 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/60 text-orange-300 hover:text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  Trigger Live Socket Dispatch
+                </button>
+              </div>
+            </div>
+
+            {/* Zones in Horizontal Compact Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+              {stretcherZones.map((z) => (
+                <div
+                  key={z.id}
+                  className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <div className="font-semibold text-slate-200 text-[11px]">{z.zone}</div>
+                    <div className="text-[9px] text-slate-400">{z.staffAssigned} Staff • {z.lastUpdate}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-bold text-emerald-400 text-xs">{z.available} Free</div>
+                    <div className="font-mono text-[9px] text-amber-400">{z.inUse} In-Use</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </main>
       </div>
 
@@ -1686,6 +2043,14 @@ export const HospitalReceptionDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* MODAL: Patient AI Clinical Emergency Report Viewer */}
+      {selectedAiReport && (
+        <PatientReportModal
+          isOpen={!!selectedAiReport}
+          report={selectedAiReport}
+          onClose={() => setSelectedAiReport(null)}
+        />
       )}
     </div>
   );

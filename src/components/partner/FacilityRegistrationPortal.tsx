@@ -40,17 +40,24 @@ import {
   Eye,
   Key,
   ExternalLink,
-  Laptop
+  Laptop,
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { playTactileClick, playConfirmChime, playCodeRedAlert } from '../../lib/audio';
 
 type FacilityType = 'hospital' | 'blood_bank' | 'ambulance';
 
 export const FacilityRegistrationPortal: React.FC = () => {
-  const { setMode, emitPartnerFacilityRegister } = usePrathmikta();
+  const { setMode, emitPartnerFacilityRegister, liveFacilities } = usePrathmikta();
 
   // Registration Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [loginEmail, setLoginEmail] = useState<string>('citycare@prathmikta.in');
+  const [loginPassword, setLoginPassword] = useState<string>('123456789');
+  const [loginFacilityType, setLoginFacilityType] = useState<FacilityType>('hospital');
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [activeFacilityType, setActiveFacilityType] = useState<FacilityType>('hospital');
   const [registrationStep, setRegistrationStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -63,8 +70,8 @@ export const FacilityRegistrationPortal: React.FC = () => {
 
   // Generated dynamic API Key & Credentials
   const [generatedApiKey, setGeneratedApiKey] = useState<string>('pk_live_7f3a5c9d2b6e8f1a9d0c4e7b9a2f1c6d');
-  const [generatedEmail, setGeneratedEmail] = useState<string>('emergency@citycarehosp.in');
-  const [generatedPassword, setGeneratedPassword] = useState<string>('R!mlk7Yp3@2024');
+  const [generatedEmail, setGeneratedEmail] = useState<string>('citycare@prathmikta.in');
+  const [generatedPassword, setGeneratedPassword] = useState<string>('123456789');
 
   // Hospital Form State (matches screenshot)
   const [hospitalForm, setHospitalForm] = useState({
@@ -140,11 +147,18 @@ export const FacilityRegistrationPortal: React.FC = () => {
     const genId = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
     setSubmittedFacilityId(genId);
 
-    const email =
-      activeFacilityType === 'hospital' ? hospitalForm.officialEmail
-      : activeFacilityType === 'blood_bank' ? 'bloodcenter@lifesave.org.in'
-      : 'dispatch@citycareambulance.in';
+    const rawName =
+      activeFacilityType === 'hospital' ? hospitalForm.hospitalName
+      : activeFacilityType === 'blood_bank' ? bloodBankForm.bloodBankName
+      : ambulanceForm.fleetName;
+
+    // Clean name slug for email (e.g., "Apex Trauma" -> "apextrauma@prathmikta.in")
+    const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16) || 'facility';
+    const email = `${cleanSlug}@prathmikta.in`;
+    const assignedPassword = '123456789';
+
     setGeneratedEmail(email);
+    setGeneratedPassword(assignedPassword);
 
     const randomKey = 'pk_live_' + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     setGeneratedApiKey(randomKey);
@@ -263,7 +277,7 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* 1. TOP NAVBAR (MATCHING THE ATTACHED SCREENSHOT) */}
       {/* ========================================================================= */}
       <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 px-4 sm:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="w-full flex items-center justify-between">
           
           {/* Brand Logo & Sub-tag */}
           <div
@@ -308,12 +322,24 @@ export const FacilityRegistrationPortal: React.FC = () => {
             </a>
           </nav>
 
-          {/* Right Action: Register Facility CTA */}
-          <div className="flex items-center gap-3">
+          {/* Right Action: Register Facility CTA & Partner Login Button */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClick();
+                setIsLoginModalOpen(true);
+              }}
+              className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-[#1d63ff]" />
+              <span>Partner Login</span>
+            </button>
+
             <button
               type="button"
               onClick={() => handleOpenRegistration('hospital')}
-              className="px-5 py-2.5 rounded-xl bg-[#1d63ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+              className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-[#1d63ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
             >
               Register Facility
             </button>
@@ -326,7 +352,7 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* 2. HERO SECTION WITH IMAGE & 3 STACKED STAT BADGES */}
       {/* ========================================================================= */}
       <section className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 px-4 sm:px-8 bg-gradient-to-b from-slate-50/80 via-white to-white">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
@@ -1027,6 +1053,128 @@ export const FacilityRegistrationPortal: React.FC = () => {
       </section>
 
       {/* ========================================================================= */}
+      {/* 7.5 LIVE MONGODB PERSISTED REGISTRY & VERIFIED PARTNER AUDIT TABLE */}
+      {/* ========================================================================= */}
+      <section id="live-db-registry" className="px-4 sm:px-8 py-10 bg-slate-900 text-white border-y border-slate-800">
+        <div className="max-w-7xl mx-auto space-y-6 text-left">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 font-mono">
+                  LIVE MONGODB ATLAS SYNC ACTIVE
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+                <Database className="w-6 h-6 text-emerald-400" />
+                <span>Verified Facilities Registry (MongoDB Database)</span>
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Live records stored in the cloud cluster ({liveFacilities?.length || 0} Facilities Registered). Auto-updates in real-time upon new registrations.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleOpenRegistration('hospital')}
+                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Register New Facility</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Database Table Container */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Facility ID</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Facility Name</th>
+                    <th className="py-3 px-4">Location</th>
+                    <th className="py-3 px-4">Capacity / Beds</th>
+                    <th className="py-3 px-4">ABDM Status</th>
+                    <th className="py-3 px-4">Database State</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80 text-slate-300 font-medium">
+                  {liveFacilities && liveFacilities.length > 0 ? (
+                    liveFacilities.map((fac, idx) => (
+                      <tr key={fac.facilityId || idx} className="hover:bg-slate-900/50 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-sky-400">
+                          {fac.facilityId}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                            fac.facilityType === 'hospital'
+                              ? 'bg-blue-950 text-blue-400 border border-blue-800/50'
+                              : fac.facilityType === 'blood_bank'
+                              ? 'bg-red-950 text-red-400 border border-red-800/50'
+                              : 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
+                          }`}>
+                            {fac.facilityType?.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-white text-xs">{fac.facilityName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{fac.registrationNumber || fac.contactPhone}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-400">
+                          {fac.city || 'Lucknow'}, {fac.state || 'Uttar Pradesh'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {fac.hospitalCapacity ? (
+                            <span className="font-mono text-emerald-400">
+                              {fac.hospitalCapacity.icuBeds || 0} ICU • {fac.hospitalCapacity.ventilators || 0} Vent • {fac.hospitalCapacity.erTraumaBays || 0} ER
+                            </span>
+                          ) : fac.bloodBankData ? (
+                            <span className="font-mono text-rose-400">
+                              8 Blood Groups Active
+                            </span>
+                          ) : (
+                            <span className="font-mono text-emerald-400">
+                              {fac.ambulanceFleetData?.connectedCount || 5} Connected Fleets
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>VERIFIED</span>
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span>PERSISTED IN DB</span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Database className="w-8 h-8 text-slate-600 animate-pulse" />
+                          <span className="text-xs">No custom facilities registered in current session yet. Click "Register New Facility" above to add one.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
       {/* 8. PRE-FOOTER CTA STRIP */}
       {/* ========================================================================= */}
       <section className="px-4 sm:px-8 py-6">
@@ -1163,6 +1311,190 @@ export const FacilityRegistrationPortal: React.FC = () => {
 
         </div>
       </footer>
+
+      {/* ========================================================================= */}
+      {/* 9.5 PARTNER AUTHENTICATION & LOGIN MODAL (/hb LOGIN -> /h, /b, /a DASHBOARD) */}
+      {/* ========================================================================= */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden text-left my-auto animate-in zoom-in-95">
+            
+            {/* Modal Header */}
+            <div className="bg-[#0b1b36] text-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#1d63ff] flex items-center justify-center text-white">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black tracking-tight text-white leading-tight">
+                    Partner Facility Login
+                  </h3>
+                  <p className="text-[10px] text-emerald-400 font-mono">
+                    ABDM AUTHENTICATION GATEWAY
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  playTactileClick();
+                  setIsLoginModalOpen(false);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Login Form Body */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                playConfirmChime();
+                setIsLoginModalOpen(false);
+                if (loginFacilityType === 'hospital') {
+                  setMode('hospital');
+                } else if (loginFacilityType === 'blood_bank') {
+                  setMode('bloodbank');
+                } else {
+                  setMode('ambulance');
+                }
+              }}
+              className="p-6 space-y-4 text-left"
+            >
+              <div className="p-3 rounded-2xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-[#1d63ff]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Assigned Partner Credentials</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Default credentials: Password <span className="font-mono font-bold text-slate-900 bg-white px-1.5 py-0.5 rounded border border-blue-200">123456789</span> aur email format <span className="font-mono font-bold text-slate-900 bg-white px-1.5 py-0.5 rounded border border-blue-200">name@prathmikta.in</span>.
+                </p>
+              </div>
+
+              {/* Facility Role / Destination Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                  Facility Sector
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileClick();
+                      setLoginFacilityType('hospital');
+                    }}
+                    className={`p-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                      loginFacilityType === 'hospital'
+                        ? 'bg-blue-50 border-[#1d63ff] text-[#1d63ff]'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>Hospital (/h)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileClick();
+                      setLoginFacilityType('blood_bank');
+                    }}
+                    className={`p-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                      loginFacilityType === 'blood_bank'
+                        ? 'bg-red-50 border-red-600 text-red-600'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Droplet className="w-4 h-4" />
+                    <span>Blood Bank (/b)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playTactileClick();
+                      setLoginFacilityType('ambulance');
+                    }}
+                    className={`p-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                      loginFacilityType === 'ambulance'
+                        ? 'bg-emerald-50 border-emerald-600 text-emerald-600'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Truck className="w-4 h-4" />
+                    <span>EMS Fleet (/a)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Email / Username Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                  Email / Username
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="hospitalname@prathmikta.in"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-medium text-slate-900 focus:bg-white focus:border-[#1d63ff] focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="•••••••••"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-mono font-medium text-slate-900 focus:bg-white focus:border-[#1d63ff] focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Submit / Login Button */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-[#1d63ff] hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer active:scale-98"
+                >
+                  <span>Login to {loginFacilityType === 'hospital' ? 'Hospital Dashboard (/h)' : loginFacilityType === 'blood_bank' ? 'Blood Bank (/b)' : 'Ambulance (/a)'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTactileClick();
+                    setIsLoginModalOpen(false);
+                    handleOpenRegistration('hospital');
+                  }}
+                  className="text-xs text-[#1d63ff] hover:underline font-semibold cursor-pointer"
+                >
+                  Haven't registered your facility yet? Register Now &rarr;
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 10. EXACT MATCHING REGISTRATION MODAL (HOSPITAL, BLOOD BANK, AMBULANCE, SUCCESS) */}
@@ -1330,12 +1662,13 @@ export const FacilityRegistrationPortal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      playConfirmChime();
                       setIsModalOpen(false);
-                      setMode('reception');
+                      setMode('hospital');
                     }}
-                    className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/30 cursor-pointer transition-all active:scale-95"
+                    className="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2.5 shadow-xl shadow-emerald-500/30 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]"
                   >
-                    <span>Go to Partner Dashboard</span>
+                    <span>Login &amp; Open Hospital Dashboard (/h)</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
 
@@ -1345,7 +1678,7 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       playTactileClick();
                       alert(`Downloading Prathmikta Facility Certificate: ${submittedFacilityId || 'PRATH-FACILITY-2024'}`);
                     }}
-                    className="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm border border-slate-700 flex items-center gap-2 cursor-pointer transition-all"
+                    className="px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm border border-slate-700 flex items-center gap-2 cursor-pointer transition-all"
                   >
                     <Download className="w-4 h-4" />
                     <span>Download Registration Certificate</span>

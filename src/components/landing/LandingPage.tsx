@@ -96,18 +96,18 @@ export const LandingPage: React.FC = () => {
   return (
     <div id="prathmikta-landing-root" className="w-full h-full overflow-y-auto bg-white text-slate-900 font-sans selection:bg-red-500 selection:text-white">
       {/* ========================================================================= */}
-      {/* HERO SECTION (Headline, Badges, Ambulance Illustration & Phone Mockup) */}
+      {/* HERO SECTION (Headline, Badges, Interactive Live Map & Hospital Routing) */}
       {/* ========================================================================= */}
-      <section id="landing-hero" className="relative overflow-hidden pt-8 sm:pt-14 pb-12 sm:pb-20 bg-gradient-to-b from-slate-50/70 via-white to-white">
+      <section id="landing-hero" className="relative overflow-hidden pt-8 sm:pt-14 pb-12 sm:pb-20 bg-gradient-to-b from-slate-50/80 via-white to-white">
         {/* Subtle City/Grid Blueprint Background */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
+        <div className="absolute inset-0 opacity-[0.035] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:18px_18px]" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+        <div className="w-full px-4 sm:px-8 lg:px-12 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
             {/* Left Column (6 cols): Hero Headlines & Trust Pillars */}
             <div className="lg:col-span-6 space-y-6 sm:space-y-8 text-left">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.08]">
                   Your Emergency. <br />
                   <span className="text-[#e62020] inline-block">Our Priority.</span>
@@ -121,7 +121,7 @@ export const LandingPage: React.FC = () => {
               {/* 3 Feature Trust Badges */}
               <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
                 {/* Badge 1 */}
-                <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow">
                   <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
@@ -132,7 +132,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Badge 2 */}
-                <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow">
                   <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
@@ -143,7 +143,7 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Badge 3 */}
-                <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow">
                   <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                     <Radio className="w-4 h-4" />
                   </div>
@@ -170,40 +170,22 @@ export const LandingPage: React.FC = () => {
       <AbdmAlignmentSection />
 
       {/* ========================================================================= */}
-      {/* 3.5. 3D MISSION & REALITY GALLERY: "LIVES ARE PRECIOUS" */}
+      {/* 3.5. 3D MISSION & REALITY GALLERY: "LIVES ARE PRECIOUS" (DARK ARCHIVE) */}
       {/* ========================================================================= */}
       <section
         id="lives-are-precious-gallery-section"
-        className="relative overflow-hidden bg-gradient-to-b from-slate-50/80 via-white to-slate-50/80 text-slate-900 border-y border-slate-200/80 select-none py-12 sm:py-16"
+        className="relative overflow-hidden bg-black text-white border-y border-neutral-900 select-none py-6 sm:py-10"
       >
-        {/* Ambient atmospheric glows */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-red-500/5 filter blur-[140px] pointer-events-none rounded-full" />
-        <div className="absolute -top-10 left-10 w-72 h-72 bg-blue-500/5 filter blur-[100px] pointer-events-none rounded-full" />
+        {/* Deep atmospheric ambient lighting */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-red-600/10 filter blur-[160px] pointer-events-none rounded-full" />
+        <div className="absolute top-10 left-1/4 w-80 h-80 bg-amber-500/5 filter blur-[140px] pointer-events-none rounded-full" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-6">
-          {/* Top Mission Pill & Heading */}
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-wider shadow-sm">
-              <AlertOctagon className="w-3.5 h-3.5 shrink-0 animate-pulse text-red-600" />
-              <span>Real-World Urgency • Why Prathmikta Matters</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight drop-shadow-sm">
-              Lives are{' '}
-              <span className="bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 bg-clip-text text-transparent">
-                precious.
-              </span>
-            </h2>
-
-            <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
-              Every second lost searching for an available bed or transferring between unprepared hospitals can cost a life. Prathmikta eliminates hospital-hopping with instant bed visibility and real-time triage.
-            </p>
-          </div>
-
-          {/* 3D Infinite Cloth Wave Photography Gallery Container */}
-          <div className="relative w-full h-[400px] sm:h-[480px] rounded-3xl overflow-hidden border border-slate-200/90 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 shadow-xl group">
+        <div className="w-full px-2 sm:px-6 lg:px-8 relative z-10">
+          
+          {/* 3D Infinite Newspaper Archive Stage Container */}
+          <div className="relative w-full h-[580px] sm:h-[680px] lg:h-[760px] rounded-3xl overflow-hidden border border-neutral-800/80 bg-[#050505] shadow-2xl group">
             
-            {/* 3D WebGL Canvas */}
+            {/* 3D WebGL Canvas with scorched newsprint clippings */}
             <InfiniteGallery
               images={getEmergencyGalleryImages()}
               speed={1.1}
@@ -220,11 +202,33 @@ export const LandingPage: React.FC = () => {
               className="w-full h-full cursor-grab active:cursor-grabbing"
             />
 
-            {/* Bottom Interaction Guide Hint */}
-            <div className="absolute bottom-3 left-0 right-0 pointer-events-none text-center font-mono uppercase text-[10px] text-slate-600 font-semibold tracking-wider flex items-center justify-center gap-2 bg-white/90 py-1.5 mx-auto max-w-lg rounded-full border border-slate-200 shadow-md backdrop-blur-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span>Use mouse wheel, arrow keys, or drag to explore news clippings</span>
+            {/* Center Editorial Title & Subtitle Overlay (Matching Screenshot Layout) */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20 px-4 text-center select-none">
+              <div className="space-y-3 sm:space-y-4 max-w-4xl mx-auto transform -translate-y-2">
+                
+                {/* Eyebrow: ARCHIVE OF DISASTER / CRISIS */}
+                <p className="font-mono text-[11px] sm:text-xs uppercase tracking-[0.35em] text-neutral-400 font-semibold drop-shadow-md">
+                  Archive of Healthcare Crisis
+                </p>
+
+                {/* Main Hero Display: Lives are Precious in Italic Serif */}
+                <h2 className="font-serif italic font-normal text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight text-white/95 drop-shadow-[0_15px_35px_rgba(0,0,0,0.95)]">
+                  Lives are Precious
+                </h2>
+
+                {/* Sub-Eyebrow: NEWSPRINT REPORTS */}
+                <p className="font-mono text-[10px] sm:text-xs tracking-[0.22em] uppercase text-neutral-400 max-w-2xl mx-auto font-medium drop-shadow-md leading-relaxed">
+                  Newsprint Reports of Preventable Ambulance &amp; Bed Delays
+                </p>
+
+              </div>
             </div>
+
+            {/* Bottom Interaction Guide Hint (Matching Screenshot Navigation String) */}
+            <div className="absolute bottom-5 left-0 right-0 pointer-events-none text-center font-mono uppercase text-[10px] sm:text-[11px] text-neutral-400/90 font-medium tracking-[0.25em] flex items-center justify-center gap-2 z-20">
+              <span>Use mouse wheel, arrow keys, or touch to navigate</span>
+            </div>
+
           </div>
         </div>
       </section>
@@ -243,29 +247,29 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 4. "WHAT WE OFFER" 4-CARD EMERGENCY ECOSYSTEM */}
       {/* ========================================================================= */}
-      <section id="what-we-offer" className="py-12 sm:py-16 bg-white border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+      <section id="what-we-offer" className="py-16 sm:py-20 bg-slate-50/50 border-t border-slate-200/80">
+        <div className="w-full px-4 sm:px-8 lg:px-12 space-y-12">
           
           {/* Section Header with Pulse Line */}
-          <div className="text-center space-y-2 max-w-2xl mx-auto">
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
             <div className="flex items-center justify-center gap-3 text-red-600 font-bold">
               <svg className="w-8 h-4 stroke-red-600 fill-none stroke-2" viewBox="0 0 50 20">
                 <path d="M 0 10 L 15 10 L 20 2 L 25 18 L 30 5 L 35 12 L 40 10 L 50 10" />
               </svg>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 What We Offer
               </h2>
               <svg className="w-8 h-4 stroke-red-600 fill-none stroke-2" viewBox="0 0 50 20">
                 <path d="M 0 10 L 10 10 L 15 8 L 20 15 L 25 2 L 30 18 L 35 10 L 50 10" />
               </svg>
             </div>
-            <p className="text-sm sm:text-base text-slate-500 font-medium">
-              Comprehensive emergency ecosystem for every critical moment
+            <p className="text-sm sm:text-base text-slate-600 font-medium max-w-xl mx-auto leading-relaxed">
+              Comprehensive emergency ecosystem engineered for zero-delay pre-hospital triage, bed routing, rare blood supply, and critical care transfer.
             </p>
           </div>
 
-          {/* 4 Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 items-stretch">
+          {/* 4 Feature Cards Grid with Expanded Height & Rich Telemetry */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 items-stretch">
             
             {/* ========================================================================= */}
             {/* CARD 1: GOLDEN HOUR PRE-HOSPITAL TRIAGE (SPECIAL HIGHLIGHTED BORDER GLOW CARD) */}
@@ -282,67 +286,103 @@ export const LandingPage: React.FC = () => {
               animated={false}
               colors={['#ef4444', '#f97316', '#dc2626']}
               onClick={handleGoldenHourClick}
-              className="h-full transform hover:-translate-y-1.5 transition-all shadow-xl shadow-red-500/10"
+              className="h-full transform hover:-translate-y-2 transition-all shadow-xl shadow-red-500/10 cursor-pointer"
             >
-              <div className="p-6 bg-white flex flex-col justify-between h-full space-y-4">
-                <div className="space-y-4">
-                  {/* Badge: Immediate Action */}
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-100 text-red-600 border border-rose-200">
-                      Immediate Action
+              <div className="p-6 sm:p-7 lg:p-8 bg-white flex flex-col justify-between h-full min-h-[620px] lg:min-h-[660px] space-y-6">
+                <div className="space-y-5">
+                  
+                  {/* Top Badge & Live Telemetry Tag */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-100 text-red-700 border border-rose-200 shadow-xs flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+                      <span>Immediate Action</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-200/60">
+                      &lt;30s Triage
                     </span>
                   </div>
 
-                  {/* Clock Icon Circle */}
-                  <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Clock className="w-6 h-6" />
+                  {/* Clock Icon Presentation */}
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-rose-100 text-red-600 border border-red-200/60 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                    <Clock className="w-7 h-7" />
                   </div>
 
-                  {/* Title & Description */}
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                  {/* Title & Detailed Clinical Description */}
+                  <div className="space-y-2.5">
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
                       Golden Hour Pre-Hospital Triage
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      Zero-delay emergency triage. Split-screen live navigation + pre-arrival hospital prep to eliminate door-to-treatment lag.
+                      Zero-delay emergency triage. Split-screen live navigation + pre-arrival hospital prep to eliminate door-to-treatment lag during critical cardiac, stroke, and trauma events.
                     </p>
                   </div>
 
-                  {/* Bullet Points Checklist */}
-                  <ul className="space-y-2 text-xs font-medium text-slate-700 pt-2">
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                  {/* Micro-Telemetry Feature Box */}
+                  <div className="p-3 rounded-xl bg-red-50/70 border border-red-100 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-red-800 flex items-center gap-1">
+                      <Activity className="w-3 h-3 text-red-600" />
+                      <span>Emergency Telemetry Core</span>
+                    </div>
+                    <p className="text-[11px] text-red-950 font-medium leading-normal">
+                      Instant bed lock at nearest tertiary ER + automatic stretcher dispatch at arrival gate.
+                    </p>
+                  </div>
+
+                  {/* Bullet Points Checklist (4 items) */}
+                  <ul className="space-y-2.5 text-xs font-medium text-slate-700 pt-1">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Split-screen map routing</span>
+                      <span>Split-screen dual map routing</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Pre-arrival ER doctor alert</span>
+                      <span>Pre-arrival ER doctor &amp; ICU alert</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Offline Dynamic QR Pass</span>
+                      <span>Offline dynamic QR fast-track pass</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
+                        ✓
+                      </span>
+                      <span>AI voice-assisted symptom assessment</span>
                     </li>
                   </ul>
+
+                  {/* Tech Tags Row */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      ABDM Level-3
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Live Telemetry
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Offline Resilient
+                    </span>
+                  </div>
+
                 </div>
 
                 {/* Solid Red CTA Button */}
-                <div className="pt-4">
+                <div className="pt-4 border-t border-slate-100">
                   <button
                     id="btn-start-emergency-triage-card"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleGoldenHourClick();
                     }}
-                    className="w-full py-3 px-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 transition-all cursor-pointer group active:scale-98"
                   >
                     <span>Start Emergency Triage</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -366,67 +406,103 @@ export const LandingPage: React.FC = () => {
                 playTactileClick();
                 setMode('planned_admission');
               }}
-              className="h-full transform hover:-translate-y-1.5 transition-all shadow-md hover:shadow-xl cursor-pointer"
+              className="h-full transform hover:-translate-y-2 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
-              <div className="p-6 bg-white flex flex-col justify-between h-full space-y-4">
-                <div className="space-y-4">
-                  {/* Badge: Token Marketplace */}
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200">
-                      Token Marketplace
+              <div className="p-6 sm:p-7 lg:p-8 bg-white flex flex-col justify-between h-full min-h-[620px] lg:min-h-[660px] space-y-6">
+                <div className="space-y-5">
+                  
+                  {/* Top Badge & Status Tag */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 shadow-xs flex items-center gap-1.5">
+                      <KeyRound className="w-3 h-3 text-blue-600" />
+                      <span>Token Marketplace</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/60">
+                      Zero-Queue
                     </span>
                   </div>
 
-                  {/* Key / Bed Icon Circle */}
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <KeyRound className="w-6 h-6" />
+                  {/* Key / Bed Icon Presentation */}
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 text-blue-600 border border-blue-200/60 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                    <BedDouble className="w-7 h-7" />
                   </div>
 
                   {/* Title & Description */}
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-                      Planned Admission &amp; Room Booking (Token-Secured Marketplace)
+                  <div className="space-y-2.5">
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
+                      Planned Admission &amp; Room Booking
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      Pre-book verified hospital rooms and scheduled surgical admissions with verifiable cryptographic tokens, eliminating counter queues.
+                      Pre-book verified hospital rooms and scheduled surgical admissions with verifiable cryptographic tokens, eliminating desk counter queues and paperwork delays.
                     </p>
                   </div>
 
-                  {/* Bullet Points Checklist */}
-                  <ul className="space-y-2 text-xs font-medium text-slate-700 pt-2">
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                  {/* Micro-Telemetry Feature Box */}
+                  <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-100 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-blue-800 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-blue-600" />
+                      <span>Guaranteed Bed Tariff Locking</span>
+                    </div>
+                    <p className="text-[11px] text-blue-950 font-medium leading-normal">
+                      Real-time verified room tariffs with instant digital fast-track admission vouchers.
+                    </p>
+                  </div>
+
+                  {/* Bullet Points Checklist (4 items) */}
+                  <ul className="space-y-2.5 text-xs font-medium text-slate-700 pt-1">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
                       <span>Token-secured room pre-booking</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Zero-counter admission queue</span>
+                      <span>Zero-counter admission queue bypass</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Transparent bed tariff structure</span>
+                      <span>Transparent ICU/Deluxe tariff structure</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
+                        ✓
+                      </span>
+                      <span>Pre-admission diagnostic sync</span>
                     </li>
                   </ul>
+
+                  {/* Tech Tags Row */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Cryptographic Pass
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Ayushman / ABHA
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Fast-Track QR
+                    </span>
+                  </div>
+
                 </div>
 
                 {/* White with Blue Outline Button */}
-                <div className="pt-4">
+                <div className="pt-4 border-t border-slate-100">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
                       setMode('planned_admission');
                     }}
-                    className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer group active:scale-98"
                   >
                     <span>Book Admission Token</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -450,67 +526,103 @@ export const LandingPage: React.FC = () => {
                 playTactileClick();
                 setMode('paramedic');
               }}
-              className="h-full transform hover:-translate-y-1.5 transition-all shadow-md hover:shadow-xl"
+              className="h-full transform hover:-translate-y-2 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
-              <div className="p-6 bg-white flex flex-col justify-between h-full space-y-4">
-                <div className="space-y-4">
-                  {/* Badge: Emergency Blood Grid */}
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-50 text-rose-600 border border-rose-200">
-                      Emergency Blood Grid
+              <div className="p-6 sm:p-7 lg:p-8 bg-white flex flex-col justify-between h-full min-h-[620px] lg:min-h-[660px] space-y-6">
+                <div className="space-y-5">
+                  
+                  {/* Top Badge & Live Units Tag */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-xs flex items-center gap-1.5">
+                      <Droplet className="w-3 h-3 text-rose-600" />
+                      <span>Emergency Blood Grid</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/60">
+                      Live Units
                     </span>
                   </div>
 
-                  {/* Blood Droplet Icon Circle */}
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Droplet className="w-6 h-6 fill-rose-100" />
+                  {/* Blood Droplet Icon Presentation */}
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-50 to-pink-100 text-rose-600 border border-rose-200/60 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                    <Droplet className="w-7 h-7 fill-rose-100" />
                   </div>
 
                   {/* Title & Description */}
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                  <div className="space-y-2.5">
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
                       Rare Blood Bank Inventory &amp; Unit Tracking
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      Real-time regional tracking for rare blood groups (O-neg, AB-neg, Bombay phenotype), fresh plasma, and platelet unit reserves.
+                      Real-time regional network tracking for rare blood groups (O-neg, AB-neg, Bombay phenotype), fresh frozen plasma, and platelet unit reserves.
                     </p>
                   </div>
 
-                  {/* Bullet Points Checklist */}
-                  <ul className="space-y-2 text-xs font-medium text-slate-700 pt-2">
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                  {/* Micro-Telemetry Feature Box */}
+                  <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-100 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1">
+                      <Radio className="w-3 h-3 text-rose-600" />
+                      <span>Cold-Chain Telemetry Grid</span>
+                    </div>
+                    <p className="text-[11px] text-rose-950 font-medium leading-normal">
+                      Verified storage temperature logs + immediate blood bank cross-match lock.
+                    </p>
+                  </div>
+
+                  {/* Bullet Points Checklist (4 items) */}
+                  <ul className="space-y-2.5 text-xs font-medium text-slate-700 pt-1">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Live cross-hospital blood units</span>
+                      <span>Live cross-hospital blood units map</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Rare group SOS alerts</span>
+                      <span>Rare group SOS broadcast alerts</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Direct donor &amp; bank dispatch</span>
+                      <span>Direct donor &amp; transit dispatch</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
+                        ✓
+                      </span>
+                      <span>Component separation (PRBC, FFP, Platelets)</span>
                     </li>
                   </ul>
+
+                  {/* Tech Tags Row */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      Cold-Chain Sync
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      e-RaktKosh Sync
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      SOS Dispatch
+                    </span>
+                  </div>
+
                 </div>
 
                 {/* White with Rose Outline Button */}
-                <div className="pt-4">
+                <div className="pt-4 border-t border-slate-100">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
                       setMode('hospital');
                     }}
-                    className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-rose-600/20 transition-all cursor-pointer group active:scale-98"
                   >
                     <span>Search Blood Inventory</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -534,164 +646,107 @@ export const LandingPage: React.FC = () => {
                 playTactileClick();
                 setMode('hospital');
               }}
-              className="h-full transform hover:-translate-y-1.5 transition-all shadow-md hover:shadow-xl"
+              className="h-full transform hover:-translate-y-2 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
-              <div className="p-6 bg-white flex flex-col justify-between h-full space-y-4">
-                <div className="space-y-4">
-                  {/* Badge: Inter-Hospital Grid */}
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
-                      Inter-Hospital Grid
+              <div className="p-6 sm:p-7 lg:p-8 bg-white flex flex-col justify-between h-full min-h-[620px] lg:min-h-[660px] space-y-6">
+                <div className="space-y-5">
+                  
+                  {/* Top Badge & Protocol Tag */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 shadow-xs flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3 h-3 text-amber-600" />
+                      <span>Inter-Hospital Grid</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                      HL7 / FHIR
                     </span>
                   </div>
 
-                  {/* ArrowRightLeft Icon Circle */}
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <ArrowRightLeft className="w-6 h-6" />
+                  {/* ArrowRightLeft Icon Presentation */}
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-100 text-amber-600 border border-amber-200/60 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                    <ArrowRightLeft className="w-7 h-7" />
                   </div>
 
                   {/* Title & Description */}
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-                      Post-Crisis Inter-Hospital Transit &amp; E-Dossier Dispatch
+                  <div className="space-y-2.5">
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
+                      Post-Crisis Inter-Hospital Transit &amp; E-Dossier
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                       Seamless critical care transfers with automated encrypted digital telemetry e-dossier handoff to destination tertiary care centers.
                     </p>
                   </div>
 
-                  {/* Bullet Points Checklist */}
-                  <ul className="space-y-2 text-xs font-medium text-slate-700 pt-2">
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                  {/* Micro-Telemetry Feature Box */}
+                  <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-100 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-amber-600" />
+                      <span>Encrypted Handshake Protocol</span>
+                    </div>
+                    <p className="text-[11px] text-amber-950 font-medium leading-normal">
+                      End-to-end encrypted vitals sync and auto-handover to recipient surgical teams.
+                    </p>
+                  </div>
+
+                  {/* Bullet Points Checklist (4 items) */}
+                  <ul className="space-y-2.5 text-xs font-medium text-slate-700 pt-1">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
                       <span>Automated e-dossier packet sync</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Live ICU transport telemetry</span>
+                      <span>Live ICU transit vitals telemetry</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold">
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
                         ✓
                       </span>
-                      <span>Destination receiving ER lock</span>
+                      <span>Destination receiving ER bed locking</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 text-[9px] font-bold shadow-xs">
+                        ✓
+                      </span>
+                      <span>Zero-friction paramedic handover protocol</span>
                     </li>
                   </ul>
+
+                  {/* Tech Tags Row */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      HL7 / FHIR
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      AES-256
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                      ABDM Gateway
+                    </span>
+                  </div>
+
                 </div>
 
                 {/* White with Amber Outline Button */}
-                <div className="pt-4">
+                <div className="pt-4 border-t border-slate-100">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
                       setMode('hospital');
                     }}
-                    className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-amber-50 text-amber-600 border border-amber-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-600/20 transition-all cursor-pointer group active:scale-98"
                   >
                     <span>View E-Dossier Protocol</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </div>
             </BorderGlow>
-
-          </div>
-
-          {/* Dedicated Hospital Reception & Front-Desk Triage Command Launcher */}
-          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* 1. Reception Desk Card */}
-            <div
-              onClick={() => {
-                playConfirmChime();
-                setMode('reception');
-              }}
-              className="rounded-3xl p-6 sm:p-7 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 shadow-xl hover:border-red-500/50 transition-all cursor-pointer group flex flex-col justify-between gap-4"
-            >
-              <div className="flex items-start gap-4 text-left">
-                <div className="w-12 h-12 rounded-2xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-red-400 bg-red-600/20 px-2 py-0.5 rounded-full border border-red-500/30">
-                      ER Staff &amp; Front-Desk
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">/reception</span>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                    Reception &amp; Triage Desk
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Track real-time incoming arrival times, ₹500 pre-deposit tokens, doctor rosters, vacant ICU/NICU beds, and gate dispatch.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playConfirmChime();
-                    setMode('reception');
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-red-600/30 transition-all cursor-pointer"
-                >
-                  <span>Launch Reception Portal</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Partner Portal (/hb) - Hospital & Blood Bank Registration */}
-            <div
-              onClick={() => {
-                playConfirmChime();
-                setMode('partner');
-              }}
-              className="rounded-3xl p-6 sm:p-7 bg-gradient-to-r from-blue-950 via-slate-950 to-blue-950 text-white border border-blue-900/50 shadow-xl hover:border-blue-500/50 transition-all cursor-pointer group flex flex-col justify-between gap-4"
-            >
-              <div className="flex items-start gap-4 text-left">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Building2 className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 bg-blue-600/20 px-2 py-0.5 rounded-full border border-blue-500/30">
-                      Partner Portal &bull; ABDM Grid
-                    </span>
-                    <span className="text-xs text-blue-400 font-medium">/hb</span>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                    Facility &amp; Blood Bank Onboarding
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Hospitals, blood banks, and ambulance fleets register live bed capacity, blood units (A+, B+, O, AB), and GPS telemetry.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playConfirmChime();
-                    setMode('partner');
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-[#1d63ff] hover:bg-blue-600 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-blue-600/30 transition-all cursor-pointer"
-                >
-                  <span>Register Facility (/hb)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
 
           </div>
 
@@ -702,7 +757,7 @@ export const LandingPage: React.FC = () => {
       {/* 5. TRUST BADGES BAR (100% Secure, Works Offline, Low Latency, etc.) */}
       {/* ========================================================================= */}
       <section id="trust-badges-bar" className="py-8 bg-slate-50 border-y border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-8 lg:px-12">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
             
             {/* Badge 1 */}
@@ -768,7 +823,7 @@ export const LandingPage: React.FC = () => {
       {/* 6. "WHY PRATHMIKTA?" SECTION */}
       {/* ========================================================================= */}
       <section id="why-prathmikta" className="py-12 sm:py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        <div className="w-full px-4 sm:px-8 lg:px-12 space-y-10">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Why Prathmikta?
@@ -831,8 +886,8 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 7. "EVERY SECOND COUNTS. WE ARE ALWAYS READY." BOTTOM ACTION BANNER */}
       {/* ========================================================================= */}
-      <section id="bottom-call-to-action" className="pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto rounded-3xl p-6 sm:p-10 bg-gradient-to-r from-rose-50 via-red-50/60 to-rose-50 border border-red-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+      <section id="bottom-call-to-action" className="pb-12 sm:pb-16 px-4 sm:px-8 lg:px-12">
+        <div className="w-full rounded-3xl p-6 sm:p-10 bg-gradient-to-r from-rose-50 via-red-50/60 to-rose-50 border border-red-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
           
           {/* Left: Pulsing Heart and Heading */}
           <div className="flex items-center gap-4 text-left">
@@ -875,12 +930,32 @@ export const LandingPage: React.FC = () => {
       {/* 8. FOOTER */}
       {/* ========================================================================= */}
       <footer id="landing-footer" className="border-t border-slate-100 py-6 text-xs text-slate-500 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="w-full px-4 sm:px-8 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             &copy; 2026 Prathmikta. All rights reserved.
           </div>
 
           <div className="flex items-center gap-6 font-medium">
+            <button
+              onClick={() => {
+                playTactileClick();
+                setMode('command');
+              }}
+              className="text-cyan-600 hover:text-cyan-800 font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Master Command Grid (/command)</span>
+            </button>
+            <button
+              onClick={() => {
+                playTactileClick();
+                setMode('stretcher');
+              }}
+              className="text-orange-600 hover:text-orange-800 font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <span>Stretcher Attendant (/stretcher)</span>
+            </button>
             <button
               onClick={() => setAboutModalOpen(true)}
               className="hover:text-slate-900 transition-colors cursor-pointer"

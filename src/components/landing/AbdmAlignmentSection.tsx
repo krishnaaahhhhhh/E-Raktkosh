@@ -16,7 +16,7 @@ export const AbdmAlignmentSection: React.FC = () => {
       id="abdm-alignment-section"
       className="py-12 sm:py-16 bg-gradient-to-b from-white via-slate-50/50 to-white border-y border-slate-200/80 select-none"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+      <div className="w-full px-4 sm:px-8 lg:px-12 space-y-10">
         
         {/* Section Header */}
         <div className="text-center space-y-2.5 max-w-3xl mx-auto">

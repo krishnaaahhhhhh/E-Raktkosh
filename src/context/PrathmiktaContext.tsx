@@ -116,61 +116,159 @@ interface PrathmiktaContextType {
 
 function getInitialRouteMode(): AppViewMode {
   try {
-    const path = (window.location.pathname || '').toLowerCase();
-    const hash = (window.location.hash || '').toLowerCase();
+    const path = (window.location.pathname || '').toLowerCase().trim();
+    const hash = (window.location.hash || '').toLowerCase().trim();
 
-    // /a ambulance route
+    // Check root explicitly if hash is empty or # or #/ or #/home or path is /
     if (
+      (hash === '' || hash === '#' || hash === '#/' || hash === '#/home' || hash === '#/landing') &&
+      (path === '' || path === '/' || path === '/home' || path === '/landing' || path === '/index.html')
+    ) {
+      return 'landing';
+    }
+
+    // /a ambulance route (strict check so it doesn't accidentally catch other things)
+    if (
+      hash === '#/a' ||
+      hash === '#a' ||
+      hash.startsWith('#/a?') ||
+      hash.startsWith('#/a/') ||
+      hash.includes('ambulance') ||
+      hash.includes('paramedic') ||
       path === '/a' ||
       path.startsWith('/a/') ||
       path.startsWith('/a?') ||
       path.includes('/ambulance') ||
-      path.includes('/paramedic') ||
-      hash === '#/a' ||
-      hash === '#a' ||
-      hash.startsWith('#/a?') ||
-      hash.includes('ambulance') ||
-      hash.includes('paramedic')
+      path.includes('/paramedic')
     ) {
       return 'ambulance';
     }
 
     // /b blood bank route
     if (
+      hash === '#/b' ||
+      hash === '#b' ||
+      hash.startsWith('#/b?') ||
+      hash.startsWith('#/b/') ||
+      hash.includes('bloodbank') ||
+      hash.includes('blood-bank') ||
+      hash.includes('blood') ||
       path === '/b' ||
       path.startsWith('/b/') ||
       path.startsWith('/b?') ||
       path.includes('/bloodbank') ||
       path.includes('/blood-bank') ||
-      path.includes('/blood') ||
-      hash === '#/b' ||
-      hash === '#b' ||
-      hash.startsWith('#/b?') ||
-      hash.includes('bloodbank') ||
-      hash.includes('blood-bank') ||
-      hash.includes('blood')
+      path.includes('/blood')
     ) {
       return 'bloodbank';
     }
 
-    if (path.includes('/hb') || path.includes('/partner') || path.includes('/facility') || hash.includes('hb') || hash.includes('partner')) {
+    // /stretcher or /stetcher Stretcher Attendant Portal route
+    if (
+      hash === '#/stretcher' ||
+      hash === '#stretcher' ||
+      hash === '#/stetcher' ||
+      hash === '#stetcher' ||
+      hash.includes('stretcher') ||
+      hash.includes('stetcher') ||
+      path === '/stretcher' ||
+      path === '/stetcher' ||
+      path.includes('/stretcher') ||
+      path.includes('/stetcher')
+    ) {
+      return 'stretcher';
+    }
+
+    // /command Master Command Grid route
+    if (
+      hash === '#/command' ||
+      hash === '#command' ||
+      hash.startsWith('#/command?') ||
+      hash.startsWith('#/command/') ||
+      hash.includes('command') ||
+      path === '/command' ||
+      path.startsWith('/command/') ||
+      path.startsWith('/command?') ||
+      path.includes('/command')
+    ) {
+      return 'command';
+    }
+
+    // /hb partner route
+    if (
+      hash === '#/hb' ||
+      hash === '#hb' ||
+      hash.startsWith('#/hb?') ||
+      hash.includes('partner') ||
+      hash.includes('facility') ||
+      path === '/hb' ||
+      path.startsWith('/hb/') ||
+      path.includes('/partner') ||
+      path.includes('/facility')
+    ) {
       return 'partner';
     }
-    if (path === '/h' || path.startsWith('/h/') || path.startsWith('/h?') || hash === '#/h' || hash === '#h' || hash.startsWith('#/h?') || path.includes('/reception') || hash.includes('reception') || path.includes('/hospital') || hash.includes('hospital') || hash.includes('tv_command') || hash.includes('frontdesk')) {
+
+    // /h hospital route
+    if (
+      hash === '#/h' ||
+      hash === '#h' ||
+      hash.startsWith('#/h?') ||
+      hash.includes('hospital') ||
+      hash.includes('reception') ||
+      hash.includes('tv_command') ||
+      hash.includes('frontdesk') ||
+      path === '/h' ||
+      path.startsWith('/h/') ||
+      path.startsWith('/h?') ||
+      path.includes('/reception') ||
+      path.includes('/hospital')
+    ) {
       return 'hospital';
     }
-    if (path.includes('/coordinate') || hash.includes('coordinate') || hash.includes('regional_deoc') || hash.includes('admin')) {
+
+    // /coordinate route
+    if (
+      hash.includes('coordinate') ||
+      hash.includes('regional_deoc') ||
+      hash.includes('deoc') ||
+      path.includes('/coordinate') ||
+      path.includes('/deoc')
+    ) {
       return 'coordinate';
     }
-    if (path.includes('/planned-admission') || path.includes('/booking') || hash.includes('planned-admission') || hash.includes('booking')) {
+
+    // /planned-admission route
+    if (
+      hash.includes('planned-admission') ||
+      hash.includes('booking') ||
+      path.includes('/planned-admission') ||
+      path.includes('/booking')
+    ) {
       return 'planned_admission';
     }
-    if (path.includes('/patient') || hash.includes('patient') || hash.includes('citizen')) {
+
+    // /patient route
+    if (
+      hash.includes('patient') ||
+      hash.includes('citizen') ||
+      hash.includes('sos') ||
+      path.includes('/patient') ||
+      path.includes('/citizen') ||
+      path.includes('/sos')
+    ) {
       return 'patient';
     }
-    if (path.includes('/split') || hash.includes('dual_split') || hash.includes('split')) {
+
+    // /split dual split route
+    if (
+      hash.includes('split') ||
+      hash.includes('dual_split') ||
+      path.includes('/split')
+    ) {
       return 'dual_split';
     }
+
     return 'landing';
   } catch {
     return 'landing';
@@ -467,11 +565,37 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     socketRef.current = socket;
 
+    // Initial REST API bootstrap from MongoDB Atlas
+    const fetchPersistedData = async () => {
+      try {
+        const [facRes, tokRes, admRes] = await Promise.allSettled([
+          fetch('/api/partner/facilities').then(r => r.ok ? r.json() : []),
+          fetch('/api/tokens').then(r => r.ok ? r.json() : []),
+          fetch('/api/planned-admissions').then(r => r.ok ? r.json() : [])
+        ]);
+
+        if (facRes.status === 'fulfilled' && Array.isArray(facRes.value)) {
+          setLiveFacilities(facRes.value);
+        }
+        if (tokRes.status === 'fulfilled' && Array.isArray(tokRes.value)) {
+          setLiveTokens(tokRes.value);
+        }
+        if (admRes.status === 'fulfilled' && Array.isArray(admRes.value)) {
+          setLivePlannedAdmissions(admRes.value);
+        }
+      } catch (err) {
+        console.warn('[Context] Initial DB fetch fallback', err);
+      }
+    };
+
+    fetchPersistedData();
+
     socket.on('connect', () => {
       console.log('[Socket.io] Connected to Prathmikta Realtime Mesh:', socket.id);
       setIsConnected(true);
       socket.emit('join:hospital', { hospitalId: activeHospitalId });
       socket.emit('join:city', { cityName: 'New Delhi / NCR' });
+      fetchPersistedData();
     });
 
     socket.on('disconnect', () => {
@@ -536,7 +660,7 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setLiveTokens(prev => [tokenData, ...prev.filter(t => t.tokenNumber !== tokenData.tokenNumber)].slice(0, 50));
     });
 
-    // 4. Planned Admissions Live Broadcast
+    // 4. Planned Admissions Live Broadcast & Dynamic Bed Seat Occupancy Deduction
     socket.on('admission:new', (admissionData: any) => {
       console.log('[Socket.io] New planned admission received:', admissionData);
       setLivePlannedAdmissions(prev => [admissionData, ...prev.filter(a => a.bookingId !== admissionData.bookingId)].slice(0, 50));
@@ -545,10 +669,38 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         payload: admissionData,
         timestamp: new Date().toISOString()
       });
+
+      // Dynamically deduct/occupy bed in target hospital facility
+      const targetHospId = admissionData.targetHospitalId || 'hosp-apex';
+      setHospitals(prev => {
+        const hosp = prev[targetHospId];
+        if (!hosp) return prev;
+        const newOccupied = Math.min(hosp.totalFacilityBeds, (hosp.occupiedFacilityBeds || 0) + 1);
+        return {
+          ...prev,
+          [targetHospId]: {
+            ...hosp,
+            occupiedFacilityBeds: newOccupied
+          }
+        };
+      });
     });
 
     socket.on('admission:booked', (admissionData: any) => {
       setLivePlannedAdmissions(prev => [admissionData, ...prev.filter(a => a.bookingId !== admissionData.bookingId)].slice(0, 50));
+      const targetHospId = admissionData.targetHospitalId || 'hosp-apex';
+      setHospitals(prev => {
+        const hosp = prev[targetHospId];
+        if (!hosp) return prev;
+        const newOccupied = Math.min(hosp.totalFacilityBeds, (hosp.occupiedFacilityBeds || 0) + 1);
+        return {
+          ...prev,
+          [targetHospId]: {
+            ...hosp,
+            occupiedFacilityBeds: newOccupied
+          }
+        };
+      });
     });
 
     // 5. Facility Partner Registrations Live Broadcast (/hb route)

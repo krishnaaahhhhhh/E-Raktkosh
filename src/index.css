@@ -110,3 +110,39 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #334155;
 }
+
+/* Real-Time Live Continuous Hospital ECG Monitor Oscilloscope Animation */
+@keyframes ecg-stream {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ecg-sweep {
+  0% {
+    left: -20%;
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    left: 120%;
+    opacity: 0.1;
+  }
+}
+
+.animate-ecg-stream {
+  animation: ecg-stream 2.2s linear infinite;
+  will-change: transform;
+}
+
+.animate-ecg-sweep {
+  animation: ecg-sweep 2.2s linear infinite;
+  will-change: left, opacity;
+}
+
+

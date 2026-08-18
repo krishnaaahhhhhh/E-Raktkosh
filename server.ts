@@ -13,7 +13,9 @@ import {
   TokenModel,
   PlannedAdmissionModel,
   HospitalBedStateModel,
-  TelemetryLogModel
+  TelemetryLogModel,
+  StretcherAttendantModel,
+  StretcherDispatchModel
 } from './server/db';
 
 const app = express();
@@ -108,10 +110,66 @@ app.post('/api/partner/register', async (req, res) => {
 app.get('/api/partner/facilities', async (req, res) => {
   try {
     if (isDbConnected()) {
-      const facilities = await FacilityModel.find().sort({ createdAt: -1 }).limit(50);
+      const facilities = await FacilityModel.find().sort({ createdAt: -1 }).limit(100);
       return res.json(facilities);
     }
     res.json([]);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Master Command Grid Live Stats (starts at 0 and increments strictly based on registered entities)
+app.get('/api/command/master-stats', async (req, res) => {
+  try {
+    let hospitalCount = 0;
+    let ambulanceCount = 0;
+    let bloodBankCount = 0;
+    let bloodUnitsAvailable = 0;
+    let activeDispatchesCount = 0;
+    let facilitiesList: any[] = [];
+    let recentDispatches: any[] = [];
+
+    if (isDbConnected()) {
+      const [hospDocs, ambDocs, bbDocs, dispatches] = await Promise.all([
+        FacilityModel.find({ facilityType: 'hospital' }).sort({ createdAt: -1 }),
+        FacilityModel.find({ facilityType: 'ambulance' }).sort({ createdAt: -1 }),
+        FacilityModel.find({ facilityType: 'blood_bank' }).sort({ createdAt: -1 }),
+        DispatchModel.find().sort({ createdAt: -1 }).limit(20)
+      ]);
+
+      hospitalCount = hospDocs.length;
+      bloodBankCount = bbDocs.length;
+
+      // Sum ambulance counts from registered ambulance fleets
+      ambulanceCount = ambDocs.reduce((acc: number, doc: any) => {
+        const count = Number(doc.ambulanceFleetData?.connectedCount) || 1;
+        return acc + count;
+      }, 0);
+
+      // Sum blood units from registered blood banks
+      bloodUnitsAvailable = bbDocs.reduce((acc: number, doc: any) => {
+        const matrix = (doc.bloodBankData?.stockMatrix || {}) as Record<string, any>;
+        const sumUnits = Object.values(matrix).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+        return Number(acc + sumUnits);
+      }, 0);
+
+      activeDispatchesCount = dispatches.filter((d) => d.status !== 'admitted' && d.status !== 'completed').length;
+      facilitiesList = [...hospDocs, ...ambDocs, ...bbDocs];
+      recentDispatches = dispatches;
+    }
+
+    res.json({
+      connectedHospitals: hospitalCount,
+      activeAmbulances: ambulanceCount,
+      bloodBanksConnected: bloodBankCount,
+      bloodUnitsAvailable: bloodUnitsAvailable,
+      activeEmergencyCount: activeDispatchesCount,
+      emergencyLoadPercentage: hospitalCount === 0 ? 0 : Math.min(100, Math.round((activeDispatchesCount / (hospitalCount * 3 || 1)) * 100)),
+      facilities: facilitiesList,
+      recentDispatches: recentDispatches,
+      dbConnected: isDbConnected()
+    });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -133,9 +191,40 @@ app.get('/api/hospital/:id', (req, res) => {
 // 4. Emergency Citizen Triage & Inbound Ambulance Dispatch (/patient & /split routes)
 app.post('/api/dispatch', async (req, res) => {
   const dispatchPayload: InboundDispatch = req.body;
-  const hospital = hospitalsState[dispatchPayload.hospitalId];
+  const targetHospId = dispatchPayload.hospitalId || 'gsvm-kanpur';
+  let hospital = hospitalsState[targetHospId];
   if (!hospital) {
-    return res.status(404).json({ error: 'Target hospital facility not found' });
+    // If not found in static list, create dynamic record for GSVM Medical College / custom facility
+    hospital = {
+      id: targetHospId,
+      name: dispatchPayload.hospitalName || 'GSVM Medical College & Hospital, Kanpur',
+      tagline: 'Apex Level-1 Trauma Center & Golden Hour Emergency Grid',
+      state: 'Uttar Pradesh',
+      city: 'Kanpur',
+      address: 'GSVM Medical College Campus, Swaroop Nagar, Kanpur, UP 208002',
+      lat: 26.4712,
+      lng: 80.3211,
+      phone: '+91 512 253 5483',
+      emergencyHotline: '108 / 0512-253-5483',
+      traumaLevel: 'Level 1 Trauma Center',
+      cathLabActive: true,
+      strokeReady: true,
+      burnUnitReady: true,
+      totalFacilityBeds: 120,
+      occupiedFacilityBeds: 85,
+      floors: [],
+      specialties: ['Trauma ICU', 'Cardiology CCU', 'Emergency Medicine', 'ABDM Verified ER'],
+      pharmacy: {
+        isOpen24x7: true,
+        onDutyPharmacist: 'Chief Pharmacist (GSVM Central)',
+        contactNumber: '+91 512 253 5483',
+        currentShift: '24/7 Emergency Shift',
+        items: [],
+        lastRestocked: 'Today'
+      },
+      activeDispatches: []
+    };
+    hospitalsState[targetHospId] = hospital;
   }
 
   // Idempotent in-memory update
@@ -153,7 +242,7 @@ app.post('/api/dispatch', async (req, res) => {
         { dispatchId: dispatchPayload.dispatchId },
         {
           dispatchId: dispatchPayload.dispatchId,
-          hospitalId: dispatchPayload.hospitalId,
+          hospitalId: targetHospId,
           hospitalName: hospital.name,
           patientName: dispatchPayload.patient?.fullName || 'Emergency Citizen',
           patientAge: dispatchPayload.patient?.age,
@@ -182,12 +271,14 @@ app.post('/api/dispatch', async (req, res) => {
   }
 
   // Broadcast to realtime WebSocket rooms
-  io.to(`hospital:${dispatchPayload.hospitalId}`).emit('patient:inbound_received', dispatchPayload);
+  io.to(`hospital:${targetHospId}`).emit('patient:inbound_received', dispatchPayload);
+  io.to('hospital:gsvm-kanpur').emit('patient:inbound_received', dispatchPayload);
   io.to(`city:${hospital.city}`).emit('city:dispatch_broadcast', {
     hospitalId: hospital.id,
     dispatch: dispatchPayload
   });
   io.emit('global:dispatch_update', dispatchPayload);
+  io.emit('patient:inbound_received', dispatchPayload);
 
   res.status(201).json({ success: true, dispatch: dispatchPayload });
 });
@@ -350,7 +441,121 @@ app.post('/api/telemetry-log', async (req, res) => {
   }
 });
 
-// 9. Floor Bed Stepper API
+// 9. Stretcher Attendant Portal State & Dispatches (/stretcher route)
+app.get('/api/stretcher/attendant', async (req, res) => {
+  try {
+    const attendantId = (req.query.attendantId as string) || 'SA-1047';
+    if (isDbConnected()) {
+      let attendant = await StretcherAttendantModel.findOne({ attendantId });
+      if (!attendant) {
+        attendant = await StretcherAttendantModel.create({
+          attendantId,
+          name: 'Ram Singh',
+          employeeId: 'SA-1047',
+          dutyStatus: 'Shade Shelter Active',
+          shiftHours: '08:00 AM to 04:00 PM',
+          heatIndexNow: 42.8,
+          shadeCompliance: 98,
+          hydrationLogs: 3,
+          totalTrips: 6,
+          activeDutyMinutes: 165,
+          currentLocation: 'Indoor Shade Shelter – Emergency Block A',
+          onBreak: false
+        });
+      }
+      return res.json(attendant);
+    }
+    res.json({
+      attendantId,
+      name: 'Ram Singh',
+      employeeId: 'SA-1047',
+      dutyStatus: 'Shade Shelter Active',
+      shiftHours: '08:00 AM to 04:00 PM',
+      heatIndexNow: 42.8,
+      shadeCompliance: 98,
+      hydrationLogs: 3,
+      totalTrips: 6,
+      activeDutyMinutes: 165,
+      currentLocation: 'Indoor Shade Shelter – Emergency Block A',
+      onBreak: false
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/stretcher/attendant/update', async (req, res) => {
+  try {
+    const updateData = req.body;
+    const attendantId = updateData.attendantId || 'SA-1047';
+    let updated = null;
+    if (isDbConnected()) {
+      updated = await StretcherAttendantModel.findOneAndUpdate(
+        { attendantId },
+        { ...updateData, updatedAt: new Date() },
+        { upsert: true, new: true }
+      );
+    }
+    const payload = updated || updateData;
+    io.emit('stretcher:attendant_updated', payload);
+    res.json({ success: true, attendant: payload });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/api/stretcher/dispatches', async (req, res) => {
+  try {
+    const attendantId = (req.query.attendantId as string) || 'SA-1047';
+    if (isDbConnected()) {
+      const dispatches = await StretcherDispatchModel.find({ attendantId }).sort({ createdAt: -1 }).limit(50);
+      if (dispatches.length > 0) return res.json(dispatches);
+    }
+    res.json([
+      {
+        dispatchId: 'disp-101',
+        attendantId: 'SA-1047',
+        time: '10:24 AM',
+        destination: 'Gate 1 – OPD Entrance',
+        reason: 'OPD Transfer',
+        priority: 'Medium',
+        status: 'Completed'
+      },
+      {
+        dispatchId: 'disp-102',
+        attendantId: 'SA-1047',
+        time: '09:45 AM',
+        destination: 'Emergency Block B',
+        reason: 'Trauma Transfer',
+        priority: 'High',
+        status: 'Completed'
+      }
+    ]);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/stretcher/dispatch', async (req, res) => {
+  try {
+    const dispatchData = req.body;
+    let saved = null;
+    if (isDbConnected()) {
+      saved = await StretcherDispatchModel.findOneAndUpdate(
+        { dispatchId: dispatchData.dispatchId },
+        dispatchData,
+        { upsert: true, new: true }
+      );
+    }
+    const payload = saved || dispatchData;
+    io.emit('stretcher:dispatch_new', payload);
+    res.status(201).json({ success: true, dispatch: payload });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 10. Floor Bed Stepper API
 app.post('/api/floor/beds', async (req, res) => {
   const { hospitalId, floorId, type, delta } = req.body;
   const hospital = hospitalsState[hospitalId];
@@ -688,6 +893,65 @@ io.on('connection', (socket) => {
       }
     }
   );
+
+  // 11. Real-Time Stretcher Dispatch to Ram Singh (SA-1047)
+  socket.on('stretcher:dispatch', async (dispatchData: any) => {
+    console.log(`[Socket.io] Stretcher dispatch received for attendant: ${dispatchData.attendantId} (${dispatchData.attendantName || 'Ram Singh'})`);
+    
+    // Default to Ram Singh SA-1047 if not specified
+    const payload = {
+      dispatchId: dispatchData.dispatchId || `disp-${Date.now()}`,
+      attendantId: dispatchData.attendantId || 'SA-1047',
+      attendantName: dispatchData.attendantName || 'Ram Singh',
+      patientName: dispatchData.patientName || 'Emergency Patient',
+      caseId: dispatchData.caseId || 'TNX-2024-EMG',
+      hospitalId: dispatchData.hospitalId || 'gsvm-kanpur',
+      hospitalName: dispatchData.hospitalName || 'GSVM Medical College, Kanpur',
+      destination: dispatchData.destination || 'Gate 2 – Main Entrance',
+      targetBed: dispatchData.targetBed || 'ICU Bed #4 (Ventilator Bay)',
+      reason: dispatchData.reason || 'Emergency Patient Transfer',
+      priority: dispatchData.priority || 'High',
+      etaRequired: dispatchData.etaRequired || 'Within 3 Minutes',
+      time: dispatchData.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'Dispatched',
+      severity: dispatchData.severity || 'TRAUMA RED'
+    };
+
+    if (isDbConnected()) {
+      try {
+        await StretcherDispatchModel.findOneAndUpdate(
+          { dispatchId: payload.dispatchId },
+          payload,
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        console.warn('[MongoDB] Save stretcher dispatch error:', err);
+      }
+    }
+
+    // Broadcast directly to Ram Singh / Stretcher Portals and Hospital Dashboards
+    io.emit('stretcher:dispatch_new', payload);
+    io.to(`hospital:${payload.hospitalId}`).emit('stretcher:dispatched', payload);
+  });
+
+  // 12. Stretcher Status Progression from Ram Singh
+  socket.on('stretcher:status_update', async (data: { attendantId: string; dispatchId: string; step: string; statusText: string; location?: string }) => {
+    console.log(`[Socket.io] Stretcher status updated by ${data.attendantId}: ${data.step} - ${data.statusText}`);
+    
+    if (isDbConnected()) {
+      try {
+        await StretcherDispatchModel.findOneAndUpdate(
+          { dispatchId: data.dispatchId },
+          { status: data.statusText, updatedAt: new Date() },
+          { upsert: true }
+        );
+      } catch (err) {
+        console.warn('[MongoDB] Stretcher status update error:', err);
+      }
+    }
+
+    io.emit('stretcher:status_changed', data);
+  });
 
   socket.on('disconnect', () => {
     console.log(`[Socket.io] Client disconnected: ${socket.id}`);

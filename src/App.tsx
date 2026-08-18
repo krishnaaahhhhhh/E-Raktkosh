@@ -12,10 +12,15 @@ import { EmergencyCoordinateCenter } from './components/coordinate/EmergencyCoor
 import { DualSplitView } from './components/DualSplitView';
 import { ReceptionDashboard } from './components/reception/ReceptionDashboard';
 import { FacilityRegistrationPortal } from './components/partner/FacilityRegistrationPortal';
+import { MasterCommandGrid } from './components/command/MasterCommandGrid';
+import { StretcherAttendantPortal } from './components/stretcher/StretcherAttendantPortal';
+import { UniversalBackButton } from './components/ui/UniversalBackButton';
 
 const AppContent: React.FC = () => {
   const { mode } = usePrathmikta();
   const isCustomHeaderMode =
+    mode === 'command' ||
+    mode === 'stretcher' ||
     mode === 'patient' ||
     mode === 'citizen' ||
     mode === 'planned_admission' ||
@@ -32,6 +37,8 @@ const AppContent: React.FC = () => {
       {!isCustomHeaderMode && <HeaderNav />}
       <main className="flex-1 w-full h-full min-h-0 overflow-hidden relative">
         {mode === 'landing' && <LandingPage />}
+        {mode === 'command' && <MasterCommandGrid />}
+        {mode === 'stretcher' && <StretcherAttendantPortal />}
         {(mode === 'patient' || mode === 'citizen') && <CitizenEmergencyApp />}
         {mode === 'planned_admission' && <PlannedAdmissionBooking />}
         {(mode === 'reception' || mode === 'hospital' || mode === 'tv_command') && <HospitalCommandCenter />}
@@ -41,6 +48,8 @@ const AppContent: React.FC = () => {
         {mode === 'bloodbank' && <BloodBankControlCenter />}
         {mode === 'dual_split' && <DualSplitView />}
       </main>
+      {/* Universal Floating Seamless Back Button on every sub-route */}
+      <UniversalBackButton />
     </div>
   );
 };

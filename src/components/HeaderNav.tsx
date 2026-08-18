@@ -10,6 +10,7 @@ import {
   HeartHandshake
 } from 'lucide-react';
 import { playTactileClick } from '../lib/audio';
+import { AnimatedHeartbeatLogo } from './ui/AnimatedHeartbeatLogo';
 
 export const HeaderNav: React.FC = () => {
   const { mode, setMode } = usePrathmikta();
@@ -44,37 +45,24 @@ export const HeaderNav: React.FC = () => {
   return (
     <header
       id="main-app-navbar"
-      className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 select-none text-slate-800 shadow-sm"
+      className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 select-none text-slate-800 shadow-xs"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-        {/* Left: Brand Identity & Logo */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+        {/* Left: Brand Identity & Animated Real-Time Heartbeat Logo */}
         <div
           onClick={() => handleNavClick('landing-hero', 'home')}
-          className="flex items-center gap-3 cursor-pointer group"
-          title="Go to Home"
+          className="cursor-pointer group flex items-center"
+          title="Prathmikta Emergency Grid"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 flex items-center justify-center text-white shadow-md shadow-red-500/25 group-hover:scale-105 transition-transform shrink-0">
-            <Activity className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xl font-black text-slate-900 tracking-tight">Prathmikta</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-600 text-white tracking-wider">
-                Emergency
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium hidden sm:block">
-              Smart Emergency &amp; Triage Grid
-            </p>
-          </div>
+          <AnimatedHeartbeatLogo size="md" showBadge={true} showWaveformStrip={true} />
         </div>
 
-        {/* Right: 4 Navigation Sections Only (Home, About, Services, Contact Us) */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
+        {/* Right: 4 Clean Navigation Links Matching User Screenshot (Home, About, Services, Contact Us) */}
+        <nav className="hidden md:flex items-center gap-8 lg:gap-10 text-sm font-semibold text-slate-600">
           <button
             id="nav-link-home"
             onClick={() => handleNavClick('landing-hero', 'home')}
-            className={`pb-1 transition-colors cursor-pointer ${
+            className={`pb-1 transition-colors cursor-pointer text-sm font-bold tracking-tight ${
               activeNav === 'home'
                 ? 'text-red-600 font-bold border-b-2 border-red-600'
                 : 'hover:text-red-600'
@@ -86,7 +74,7 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-about"
             onClick={() => handleNavClick('why-prathmikta', 'about')}
-            className={`pb-1 transition-colors cursor-pointer ${
+            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
               activeNav === 'about'
                 ? 'text-red-600 font-bold border-b-2 border-red-600'
                 : 'hover:text-red-600'
@@ -98,7 +86,7 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-services"
             onClick={() => handleNavClick('what-we-offer', 'services')}
-            className={`pb-1 transition-colors cursor-pointer ${
+            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
               activeNav === 'services'
                 ? 'text-red-600 font-bold border-b-2 border-red-600'
                 : 'hover:text-red-600'
@@ -110,51 +98,13 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-contact"
             onClick={() => handleNavClick('bottom-call-to-action', 'contact')}
-            className={`pb-1 transition-colors cursor-pointer ${
+            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
               activeNav === 'contact'
                 ? 'text-red-600 font-bold border-b-2 border-red-600'
                 : 'hover:text-red-600'
             }`}
           >
             Contact Us
-          </button>
-
-          <button
-            id="nav-link-ambulance"
-            onClick={() => {
-              playTactileClick();
-              setMode('ambulance');
-            }}
-            className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Ambulance Emergency Dashboard (/a)"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-            <span>Ambulance (/a)</span>
-          </button>
-
-          <button
-            id="nav-link-bloodbank"
-            onClick={() => {
-              playTactileClick();
-              setMode('bloodbank');
-            }}
-            className="px-3 py-1.5 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Blood Bank Control Center (/b)"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
-            <span>Blood Bank (/b)</span>
-          </button>
-
-          <button
-            id="nav-link-hb-partner"
-            onClick={() => {
-              playTactileClick();
-              setMode('partner');
-            }}
-            className="px-3 py-1.5 rounded-xl bg-blue-50 text-[#1d63ff] hover:bg-blue-100 border border-blue-200/80 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1d63ff]"></span>
-            <span>Partner (/hb)</span>
           </button>
         </nav>
 
@@ -172,7 +122,7 @@ export const HeaderNav: React.FC = () => {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-2 animate-in slide-in-from-top-2 duration-150">
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-lg">
           <button
             onClick={() => handleNavClick('landing-hero', 'home')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left transition-colors ${
@@ -213,46 +163,10 @@ export const HeaderNav: React.FC = () => {
             <span>Contact Us</span>
           </button>
 
-          <button
-            onClick={() => {
-              playTactileClick();
-              setMobileMenuOpen(false);
-              setMode('ambulance');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-emerald-50 text-emerald-700 transition-colors"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-            <span>Ambulance 108 Dashboard (/a)</span>
-          </button>
-
-          <button
-            onClick={() => {
-              playTactileClick();
-              setMobileMenuOpen(false);
-              setMode('bloodbank');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-red-50 text-red-700 transition-colors"
-          >
-            <span className="w-2 h-2 rounded-full bg-red-600"></span>
-            <span>Blood Bank Control Center (/b)</span>
-          </button>
-
-          <button
-            onClick={() => {
-              playTactileClick();
-              setMobileMenuOpen(false);
-              setMode('partner');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left bg-blue-50 text-[#1d63ff] transition-colors"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#1d63ff]"></span>
-            <span>Partner / Facility Portal (/hb)</span>
-          </button>
-
           <div className="pt-2 border-t border-slate-100">
             <a
               href="tel:108"
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-600 text-white font-bold text-xs"
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md shadow-red-500/20"
             >
               <PhoneCall className="w-4 h-4" />
               <span>National Ambulance 108 / 112</span>
@@ -263,4 +177,5 @@ export const HeaderNav: React.FC = () => {
     </header>
   );
 };
+
 
