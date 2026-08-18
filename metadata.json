@@ -1,0 +1,8 @@
+{
+  "name": "Remix Prathmikta Transit \u0026 E-Dossier",
+  "description": "Streamlined emergency transfers featuring clinical E-Dossier dispatch, real-time hospital readiness tracking, and secure patient handoffs for advanced medical care.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
