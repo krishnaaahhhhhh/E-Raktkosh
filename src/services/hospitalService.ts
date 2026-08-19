@@ -1,3 +1,5 @@
+import { HigherCenter } from '../types/transfer';
+
 export interface RealHospital {
   id: string;
   name: string;
@@ -470,3 +472,63 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
     return 'Kanpur, Uttar Pradesh';
   }
 }
+
+export const MOCK_HIGHER_CENTERS: HigherCenter[] = [
+  {
+    id: 'hosp-sgpgi-lko',
+    name: 'SGPGI Lucknow',
+    city: 'Lucknow, UP',
+    distanceKm: 88,
+    estimatedTravelTime: '2h 18m',
+    cardiologyStatus: 'AVAILABLE',
+    cathLabStatus: 'AVAILABLE',
+    cathLabNumber: 'Cath Lab 02 (Interventional Standby)',
+    icuStatus: 'LIMITED',
+    icuBedsAvailable: 3,
+    transferAcceptanceStatus: 'READY TO RECEIVE',
+    overallReadinessScore: 96,
+    receivingDoctor: 'Dr. Vivek Saxena, DM (Interventional Cardiology)',
+    receivingDoctorSpecialty: 'Head, Acute Coronary Care Unit',
+    contactEmergencyLine: '+91 522 266 8700',
+    recommendedReason: 'Top tertiary apex PCI center; direct bypass protocol to Cath Lab 2 available.',
+    facilities: ['24/7 Primary PCI', 'Coronary Care Unit', 'IABP / Impella Support', 'ABDM Bridge Node'],
+  },
+  {
+    id: 'hosp-lps-kanpur',
+    name: 'LPS Institute of Cardiology',
+    city: 'Kanpur, UP',
+    distanceKm: 14,
+    estimatedTravelTime: '28m',
+    cardiologyStatus: 'AVAILABLE',
+    cathLabStatus: 'AVAILABLE',
+    cathLabNumber: 'Cath Lab 01 (Emergency)',
+    icuStatus: 'AVAILABLE',
+    icuBedsAvailable: 7,
+    transferAcceptanceStatus: 'READY TO RECEIVE',
+    overallReadinessScore: 92,
+    receivingDoctor: 'Dr. R. K. Verma, MD (Cardiology)',
+    receivingDoctorSpecialty: 'Emergency Triage Chief',
+    contactEmergencyLine: '+91 512 255 6100',
+    recommendedReason: 'Closest regional cardiac specialty institute with available primary angioplasty.',
+    facilities: ['Emergency Cath Lab', 'Cardiothoracic Surgery Standby', 'ABDM Fast-Track'],
+  },
+  {
+    id: 'hosp-aiims-delhi',
+    name: 'AIIMS New Delhi',
+    city: 'New Delhi',
+    distanceKm: 442,
+    estimatedTravelTime: '5h 45m',
+    cardiologyStatus: 'ON_CALL',
+    cathLabStatus: 'OCCUPIED',
+    cathLabNumber: 'Cath Lab (Emergency Queued)',
+    icuStatus: 'FULL',
+    icuBedsAvailable: 0,
+    transferAcceptanceStatus: 'ACCEPTING (PRIORITY ONLY)',
+    overallReadinessScore: 68,
+    receivingDoctor: 'Dr. S. K. Narang, DM',
+    receivingDoctorSpecialty: 'Cardiac Emergency Registrar',
+    contactEmergencyLine: '+91 11 2658 8500',
+    recommendedReason: 'Apex National Institute. High travel distance (5h+); not recommended for acute golden-hour STEMI.',
+    facilities: ['Advanced Heart Failure Unit', 'ECMO', 'Apex Academic Center'],
+  },
+];

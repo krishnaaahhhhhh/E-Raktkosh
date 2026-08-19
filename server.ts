@@ -17,6 +17,7 @@ import {
   StretcherAttendantModel,
   StretcherDispatchModel
 } from './server/db';
+import bloodInventoryRoutes from './server/routes/bloodInventoryRoutes';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -30,6 +31,7 @@ const io = new SocketIOServer(httpServer, {
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+app.use('/api/blood-inventory', bloodInventoryRoutes);
 
 // Authoritative in-memory state for instant low-latency delivery
 const hospitalsState: Record<string, HospitalFacility> = JSON.parse(JSON.stringify(INITIAL_HOSPITALS));

@@ -15,6 +15,7 @@ export async function connectToDatabase(): Promise<boolean> {
 
   try {
     console.log('[MongoDB] Connecting to MongoDB Atlas cluster...');
+    mongoose.set('bufferCommands', false);
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000
