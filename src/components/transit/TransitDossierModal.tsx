@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Header } from './Header';
-import { EncounterBanner } from './EncounterBanner';
-import { TransferStepper } from './TransferStepper';
-import { TransferCommandPanel } from './TransferCommandPanel';
-import { HospitalSelector } from './HospitalSelector';
+import { TransferringHospitalLayout, TransferringSubRoute } from './transferring/TransferringHospitalLayout';
+import { TransferringOverview } from './transferring/TransferringOverview';
+import { CreateTransferWorkflow } from './transferring/CreateTransferWorkflow';
+import { ActiveTransfersView } from './transferring/ActiveTransfersView';
+import { TransferHistoryView } from './transferring/TransferHistoryView';
+
+import { ReceivingHospitalLayout, ReceivingSubRoute } from './receiving/ReceivingHospitalLayout';
+import { ReceivingOverview } from './receiving/ReceivingOverview';
+import { IncomingTransfersView } from './receiving/IncomingTransfersView';
+import { AcceptedTransfersView } from './receiving/AcceptedTransfersView';
+import { ReceivingHistoryView } from './receiving/ReceivingHistoryView';
+
 import { EDossierViewer } from './EDossierViewer';
-import { ConsentModal } from './ConsentModal';
-import { SecureHandshakeAnimation } from './SecureHandshakeAnimation';
-import { ReceivingHospitalDashboard } from './ReceivingHospitalDashboard';
-import { AmbulanceDispatchModal } from './AmbulanceDispatchModal';
-import { TransitMapTracker } from './TransitMapTracker';
-import { UnifiedArchitectureView } from './UnifiedArchitectureView';
 import { PdfExportModal } from './PdfExportModal';
 import { SimulationControls } from './SimulationControls';
+import { ConsentModal } from './ConsentModal';
+
 import { transferService } from '../../services/transferService';
 import { TransferRequestState } from '../../types/transfer';
-import { X, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 
 interface TransitDossierModalProps {
   isOpen: boolean;
@@ -27,14 +30,17 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
   onClose,
 }) => {
   const [state, setState] = useState<TransferRequestState>(transferService.getState());
-  const [activeView, setActiveView] = useState<'referring' | 'receiving' | 'ambulance' | 'architecture'>('referring');
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentDashboard, setCurrentDashboard] = useState<'transferring' | 'receiving'>('transferring');
+  const [transferringSubRoute, setTransferringSubRoute] = useState<TransferringSubRoute>('overview');
+  const [receivingSubRoute, setReceivingSubRoute] = useState<ReceivingSubRoute>('overview');
 
   // Modals
-  const [isConsentOpen, setIsConsentOpen] = useState<boolean>(false);
   const [isPdfOpen, setIsPdfOpen] = useState<boolean>(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState<boolean>(false);
+  const [isConsentOpen, setIsConsentOpen] = useState<boolean>(false);
+  const [isDossierModalOpen, setIsDossierModalOpen] = useState<boolean>(false);
 
+  // Subscribe to shared state
   useEffect(() => {
     const unsubscribe = transferService.subscribe((newState) => {
       setState(newState);
@@ -42,54 +48,33 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Map state status to step number
-  useEffect(() => {
-    switch (state.status) {
-      case 'STABILIZED_READY':
-        break;
-      case 'DESTINATION_SELECTED':
-        if (currentStep < 2) setCurrentStep(2);
-        break;
-      case 'DOSSIER_PREPARED':
-        if (currentStep < 3) setCurrentStep(3);
-        break;
-      case 'CONSENT_GRANTED':
-      case 'OVERRIDE_LOGGED':
-        if (currentStep < 5) setCurrentStep(5);
-        break;
-      case 'TRANSFER_REQUESTED':
-        if (currentStep < 6) setCurrentStep(6);
-        break;
-      case 'RECEIVING_ACCEPTED':
-        if (currentStep < 7) setCurrentStep(7);
-        break;
-      case 'AMBULANCE_DISPATCHED':
-      case 'EN_ROUTE':
-      case 'ARRIVED_AT_DESTINATION':
-        if (currentStep < 8) setCurrentStep(8);
-        break;
-    }
-  }, [state.status]);
-
   if (!isOpen) return null;
 
-  // Handlers
-  const handleStartTransfer = () => {
-    setCurrentStep(2);
-    transferService.selectDestinationHospital(state.selectedHospitalId);
+  const navigateTransferring = (route: TransferringSubRoute) => {
+    setTransferringSubRoute(route);
   };
 
-  const handleSelectHospital = (id: string) => {
-    transferService.selectDestinationHospital(id);
+  const navigateReceiving = (route: ReceivingSubRoute) => {
+    setReceivingSubRoute(route);
   };
 
-  const handleContinueToDossier = () => {
+  const switchToReceiving = () => {
+    setCurrentDashboard('receiving');
+    setReceivingSubRoute('overview');
+  };
+
+  const switchToTransferring = () => {
+    setCurrentDashboard('transferring');
+    setTransferringSubRoute('overview');
+  };
+
+  // State actions
+  const handleSelectHospital = (hospitalId: string) => {
+    transferService.selectDestinationHospital(hospitalId);
+  };
+
+  const handleGenerateDossier = () => {
     transferService.generateEDossier();
-    setCurrentStep(3);
-  };
-
-  const handleProceedToConsent = () => {
-    setIsConsentOpen(true);
   };
 
   const handleAuthorizeConsent = (
@@ -98,22 +83,16 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
   ) => {
     setIsConsentOpen(false);
     transferService.validateConsent(isEmergencyOverride, overrideData);
-    transferService.sendTransferRequest();
-    setCurrentStep(5);
   };
 
-  const handleHandshakeComplete = () => {
-    // handshake finished
+  const handleSendTransferRequest = () => {
+    transferService.sendTransferRequest();
   };
 
   const handleAcceptTransfer = (notes?: string) => {
     transferService.acceptTransfer(notes);
-    setCurrentStep(7);
-  };
-
-  const handleDispatchAmbulance = () => {
     transferService.dispatchAmbulance();
-    setCurrentStep(8);
+    setReceivingSubRoute('accepted');
   };
 
   const handleUpdateTransitProgress = (percent: number) => {
@@ -122,14 +101,15 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
 
   const handleResetDemo = () => {
     transferService.resetDemo();
-    setCurrentStep(1);
-    setActiveView('referring');
+    setCurrentDashboard('transferring');
+    setTransferringSubRoute('overview');
+    setReceivingSubRoute('overview');
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md overflow-y-auto flex flex-col font-sans selection:bg-red-500 selection:text-white animate-fade-in">
-      {/* Top Banner Bar for Modal Navigation */}
-      <div className="bg-amber-600 text-slate-950 px-4 py-2 text-xs font-black flex items-center justify-between border-b border-amber-700 shadow-sm shrink-0">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md overflow-y-auto flex flex-col font-sans selection:bg-red-600 selection:text-white animate-fade-in">
+      {/* Top Banner Bar for Modal Controls */}
+      <div className="bg-amber-600 text-slate-950 px-4 py-2 text-xs font-black flex items-center justify-between border-b border-amber-700 shadow-xs shrink-0">
         <div className="flex items-center gap-2">
           <span className="px-2 py-0.5 bg-slate-950 text-amber-400 rounded text-[10px] uppercase tracking-wider font-extrabold">
             Pillar 4 Module
@@ -146,182 +126,142 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-        {/* Top Header */}
-        <Header
-          state={state}
-          activeView={activeView}
-          setActiveView={(v) => {
-            setActiveView(v);
-            if (v === 'receiving') setCurrentStep(6);
-            if (v === 'ambulance') setCurrentStep(8);
-          }}
-          onOpenPdf={() => setIsPdfOpen(true)}
-          onOpenSandboxDrawer={() => setIsSandboxOpen(true)}
-          onResetDemo={handleResetDemo}
-          onClose={onClose}
-        />
+      <div className="flex-1 min-h-screen bg-slate-50 text-slate-800 font-sans antialiased">
+        {/* DASHBOARD 1: TRANSFERRING HOSPITAL (KANPUR ER) */}
+        {currentDashboard === 'transferring' && (
+          <TransferringHospitalLayout
+            currentSubRoute={transferringSubRoute}
+            onNavigate={navigateTransferring}
+            onSwitchToReceiving={switchToReceiving}
+            onOpenSandbox={() => setIsSandboxOpen(true)}
+            state={state}
+          >
+            {transferringSubRoute === 'overview' && (
+              <TransferringOverview
+                state={state}
+                onInitiateTransfer={() => navigateTransferring('create-transfer')}
+                onViewActiveTransfer={() => navigateTransferring('active-transfers')}
+                onViewDossier={() => setIsDossierModalOpen(true)}
+                onOpenPdf={() => setIsPdfOpen(true)}
+                onSwitchToReceiving={switchToReceiving}
+              />
+            )}
 
-        {/* Patient & Encounter Identifier Banner */}
-        <EncounterBanner state={state} />
+            {transferringSubRoute === 'create-transfer' && (
+              <CreateTransferWorkflow
+                state={state}
+                onSelectHospital={handleSelectHospital}
+                onGenerateDossier={handleGenerateDossier}
+                onAuthorizeConsent={handleAuthorizeConsent}
+                onSendTransferRequest={handleSendTransferRequest}
+                onOpenPdf={() => setIsPdfOpen(true)}
+                onSwitchToReceiving={switchToReceiving}
+              />
+            )}
 
-        {/* Main Flow Stepper (Available in Referring View) */}
-        {activeView === 'referring' && (
-          <TransferStepper
-            currentStatus={state.status}
-            currentStep={currentStep}
-            onStepClick={(step) => setCurrentStep(step)}
-          />
+            {transferringSubRoute === 'active-transfers' && (
+              <ActiveTransfersView
+                state={state}
+                onViewDossier={() => setIsDossierModalOpen(true)}
+                onTrackTransit={() => {}}
+                onSwitchToReceiving={switchToReceiving}
+                onUpdateTransitProgress={handleUpdateTransitProgress}
+              />
+            )}
+
+            {transferringSubRoute === 'history' && (
+              <TransferHistoryView
+                state={state}
+                onOpenPdf={() => setIsPdfOpen(true)}
+              />
+            )}
+          </TransferringHospitalLayout>
         )}
 
-        {/* Main Content Workspace */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* VIEW 1: Referring Hospital (Kanpur ER) */}
-          {activeView === 'referring' && (
-            <div className="space-y-6 animate-fade-in">
-              {currentStep === 1 && (
-                <TransferCommandPanel
-                  state={state}
-                  onStartTransfer={handleStartTransfer}
-                  onOpenDossierDirectly={() => {
-                    transferService.generateEDossier();
-                    setCurrentStep(3);
-                  }}
-                />
-              )}
+        {/* DASHBOARD 2: RECEIVING HOSPITAL (SGPGI LUCKNOW) */}
+        {currentDashboard === 'receiving' && (
+          <ReceivingHospitalLayout
+            currentSubRoute={receivingSubRoute}
+            onNavigate={navigateReceiving}
+            onSwitchToTransferring={switchToTransferring}
+            onOpenSandbox={() => setIsSandboxOpen(true)}
+            state={state}
+          >
+            {receivingSubRoute === 'overview' && (
+              <ReceivingOverview
+                state={state}
+                onReviewTransfer={() => navigateReceiving('incoming')}
+                onViewDossier={() => setIsDossierModalOpen(true)}
+                onAcceptTransfer={() => handleAcceptTransfer()}
+                onTrackAmbulance={() => navigateReceiving('accepted')}
+                onViewResources={() => navigateReceiving('accepted')}
+              />
+            )}
 
-              {currentStep === 2 && (
-                <HospitalSelector
-                  hospitals={state.hospitals}
-                  selectedHospitalId={state.selectedHospitalId}
-                  onSelectHospital={handleSelectHospital}
-                  onContinueToDossier={handleContinueToDossier}
-                  onBack={() => setCurrentStep(1)}
-                />
-              )}
+            {receivingSubRoute === 'incoming' && (
+              <IncomingTransfersView
+                state={state}
+                onAcceptTransfer={() => handleAcceptTransfer()}
+                onTrackAmbulance={() => navigateReceiving('accepted')}
+                onOpenPdf={() => setIsPdfOpen(true)}
+              />
+            )}
 
-              {currentStep === 3 && (
+            {receivingSubRoute === 'accepted' && (
+              <AcceptedTransfersView
+                state={state}
+                onTrackAmbulance={() => {}}
+                onViewDossier={() => setIsDossierModalOpen(true)}
+                onUpdateTransitProgress={handleUpdateTransitProgress}
+              />
+            )}
+
+            {receivingSubRoute === 'history' && (
+              <ReceivingHistoryView
+                state={state}
+                onOpenPdf={() => setIsPdfOpen(true)}
+              />
+            )}
+          </ReceivingHospitalLayout>
+        )}
+
+        {/* Shared E-Dossier Inspect Modal */}
+        {isDossierModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div className="font-bold text-sm">Clinical E-Dossier Inspection (FHIR R4 Bundle)</div>
+                <button
+                  onClick={() => setIsDossierModalOpen(false)}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
                 <EDossierViewer
                   state={state}
-                  onProceedToConsent={handleProceedToConsent}
                   onOpenPdf={() => setIsPdfOpen(true)}
-                  onBack={() => setCurrentStep(2)}
-                />
-              )}
-
-              {currentStep === 4 && (
-                <div className="text-center py-12 space-y-4">
-                  <p className="text-sm text-slate-500">Opening Authorization Modal...</p>
-                  <button
-                    onClick={() => setIsConsentOpen(true)}
-                    className="px-6 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white"
-                  >
-                    Open Patient Authorization Modal
-                  </button>
-                </div>
-              )}
-
-              {currentStep === 5 && (
-                <SecureHandshakeAnimation
-                  state={state}
-                  onCompleteHandshake={handleHandshakeComplete}
-                  onOpenReceivingView={() => {
-                    setActiveView('receiving');
-                    setCurrentStep(6);
+                  onProceedToConsent={() => {
+                    setIsDossierModalOpen(false);
+                    if (currentDashboard === 'transferring') {
+                      navigateTransferring('create-transfer');
+                    }
                   }}
                 />
-              )}
-
-              {currentStep === 6 && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-sky-50 dark:bg-sky-950/40 rounded-xl border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-300 flex items-center justify-between">
-                    <span>
-                      Simulating higher-center triage view for receiving cardiologist at <strong>{state.hospitals.find(h => h.id === state.selectedHospitalId)?.name}</strong>.
-                    </span>
-                    <button
-                      onClick={() => setActiveView('receiving')}
-                      className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg"
-                    >
-                      Full Screen Higher Center View
-                    </button>
-                  </div>
-                  <ReceivingHospitalDashboard
-                    state={state}
-                    onAcceptTransfer={handleAcceptTransfer}
-                    onViewDossier={() => setCurrentStep(3)}
-                    onProceedToDispatch={() => setCurrentStep(7)}
-                  />
-                </div>
-              )}
-
-              {currentStep === 7 && (
-                <AmbulanceDispatchModal
-                  state={state}
-                  onDispatchAmbulance={handleDispatchAmbulance}
-                  onViewLiveRoute={() => setCurrentStep(8)}
-                />
-              )}
-
-              {currentStep === 8 && (
-                <TransitMapTracker
-                  state={state}
-                  onUpdateProgress={handleUpdateTransitProgress}
-                  onOpenArchitecture={() => setActiveView('architecture')}
-                />
-              )}
+              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* VIEW 2: Receiving Hospital View (SGPGI Lucknow) */}
-          {activeView === 'receiving' && (
-            <div className="space-y-6 animate-fade-in">
-              <ReceivingHospitalDashboard
-                state={state}
-                onAcceptTransfer={handleAcceptTransfer}
-                onViewDossier={() => {
-                  setActiveView('referring');
-                  setCurrentStep(3);
-                }}
-                onProceedToDispatch={() => {
-                  setActiveView('referring');
-                  setCurrentStep(7);
-                }}
-              />
-            </div>
-          )}
+        {/* Printable PDF Modal */}
+        <PdfExportModal
+          isOpen={isPdfOpen}
+          state={state}
+          onClose={() => setIsPdfOpen(false)}
+        />
 
-          {/* VIEW 3: ALS Ambulance View */}
-          {activeView === 'ambulance' && (
-            <div className="space-y-6 animate-fade-in">
-              <TransitMapTracker
-                state={state}
-                onUpdateProgress={handleUpdateTransitProgress}
-                onOpenArchitecture={() => setActiveView('architecture')}
-              />
-            </div>
-          )}
-
-          {/* VIEW 4: Architecture View (Encounter Tree) */}
-          {activeView === 'architecture' && (
-            <div className="space-y-6 animate-fade-in">
-              <UnifiedArchitectureView
-                state={state}
-                onOpenDossier={() => {
-                  setActiveView('referring');
-                  setCurrentStep(3);
-                }}
-                onOpenReceiving={() => {
-                  setActiveView('receiving');
-                }}
-                onOpenAmbulance={() => {
-                  setActiveView('ambulance');
-                }}
-              />
-            </div>
-          )}
-        </main>
-
-        {/* Modals & Drawers */}
+        {/* Consent Modal */}
         <ConsentModal
           isOpen={isConsentOpen}
           state={state}
@@ -329,12 +269,7 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
           onAuthorizeConsent={handleAuthorizeConsent}
         />
 
-        <PdfExportModal
-          isOpen={isPdfOpen}
-          state={state}
-          onClose={() => setIsPdfOpen(false)}
-        />
-
+        {/* Simulation Sandbox Drawer */}
         <SimulationControls
           isOpen={isSandboxOpen}
           state={state}
@@ -343,11 +278,16 @@ export const TransitDossierModal: React.FC<TransitDossierModalProps> = ({
           onResolveError={() => transferService.resolveError()}
           onFastForwardAcceptance={() => {
             transferService.acceptTransfer();
-            setActiveView('receiving');
+            setCurrentDashboard('receiving');
+            setReceivingSubRoute('accepted');
           }}
           onFastForwardDispatch={() => {
             transferService.dispatchAmbulance();
-            setActiveView('ambulance');
+            if (currentDashboard === 'transferring') {
+              setTransferringSubRoute('active-transfers');
+            } else {
+              setReceivingSubRoute('accepted');
+            }
           }}
           onReset={handleResetDemo}
           onOpenPdf={() => setIsPdfOpen(true)}
