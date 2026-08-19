@@ -6,6 +6,8 @@ import { getEmergencyGalleryImages } from '../../data/galleryImages';
 import OurSolutionVideoSection from './OurSolutionVideoSection';
 import { AbdmAlignmentSection } from './AbdmAlignmentSection';
 import { HeroLiveRoutingCard } from './HeroLiveRoutingCard';
+import { EmergencyBloodGridModal } from '../hospital/EmergencyBloodGridModal';
+import { TransitDossierModal } from '../transit/TransitDossierModal';
 import {
   PhoneCall,
   MapPin,
@@ -47,6 +49,8 @@ export const LandingPage: React.FC = () => {
   const [currentCity, setCurrentCity] = useState('Kanpur, Uttar Pradesh');
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [resourcesModalOpen, setResourcesModalOpen] = useState(false);
+  const [bloodGridModalOpen, setBloodGridModalOpen] = useState(false);
+  const [transitModalOpen, setTransitModalOpen] = useState(false);
 
   // Auto Geolocation detection
   useEffect(() => {
@@ -524,7 +528,7 @@ export const LandingPage: React.FC = () => {
               colors={['#10b981', '#059669', '#14b8a6']}
               onClick={() => {
                 playTactileClick();
-                setMode('paramedic');
+                setBloodGridModalOpen(true);
               }}
               className="h-full transform hover:-translate-y-2 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
@@ -617,7 +621,7 @@ export const LandingPage: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
-                      setMode('hospital');
+                      setBloodGridModalOpen(true);
                     }}
                     className="w-full py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-rose-600/20 transition-all cursor-pointer group active:scale-98"
                   >
@@ -644,7 +648,7 @@ export const LandingPage: React.FC = () => {
               colors={['#f59e0b', '#d97706', '#ea580c']}
               onClick={() => {
                 playTactileClick();
-                setMode('hospital');
+                setTransitModalOpen(true);
               }}
               className="h-full transform hover:-translate-y-2 transition-all shadow-md hover:shadow-xl cursor-pointer"
             >
@@ -737,7 +741,7 @@ export const LandingPage: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       playTactileClick();
-                      setMode('hospital');
+                      setTransitModalOpen(true);
                     }}
                     className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-600/20 transition-all cursor-pointer group active:scale-98"
                   >
@@ -1016,6 +1020,18 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Emergency Rare Blood Bank Inventory Modal */}
+      <EmergencyBloodGridModal
+        isOpen={bloodGridModalOpen}
+        onClose={() => setBloodGridModalOpen(false)}
+      />
+
+      {/* Post-Crisis Inter-Hospital Transit & E-Dossier Dispatch Modal */}
+      <TransitDossierModal
+        isOpen={transitModalOpen}
+        onClose={() => setTransitModalOpen(false)}
+      />
     </div>
   );
 };
