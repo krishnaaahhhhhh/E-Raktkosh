@@ -46,11 +46,11 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
   return (
     <div
       id="pdf-export-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in"
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+      <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Modal Top Bar */}
-        <div className="p-4 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
             <Printer className="w-5 h-5 text-sky-400" />
             <div>
@@ -66,7 +66,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={handleDownloadJson}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download JSON</span>
@@ -74,193 +74,147 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
             <button
               id="btn-print-dossier"
               onClick={handlePrint}
-              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow transition cursor-pointer"
+              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm transition cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print / Save as PDF</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Printable Document Paper View */}
-        <div className="p-6 sm:p-10 overflow-y-auto bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex-1">
-          <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 space-y-6 text-xs text-slate-800 dark:text-slate-200">
-            {/* Header / Seal */}
-            <div className="border-b-2 border-slate-900 dark:border-slate-100 pb-4 flex items-start justify-between">
+        {/* Printable Paper Document Simulator */}
+        <div className="p-6 sm:p-8 overflow-y-auto bg-slate-100 flex justify-center">
+          <div
+            id="printable-dossier-sheet"
+            className="bg-white border border-slate-300 p-8 max-w-2xl w-full shadow-lg space-y-6 text-slate-900 text-xs font-serif"
+          >
+            {/* Form Header */}
+            <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
               <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-black text-lg tracking-wider text-slate-900 dark:text-white">
-                    PRATHMIKTA EMERGENCY NETWORK
-                  </span>
-                  <span className="px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-bold uppercase rounded">
-                    CRITICAL TRANSFER DOSSIER
-                  </span>
+                <div className="font-sans font-bold text-xs uppercase text-red-600 tracking-wider">
+                  PRATHMIKTA EMERGENCY CARE NETWORK
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Ayushman Bharat Digital Mission (ABDM) Interoperable Emergency Clinical Document
+                <h1 className="font-sans text-xl font-black uppercase text-slate-900">
+                  Inter-Hospital Clinical Transfer Dossier
+                </h1>
+                <p className="text-[11px] text-slate-600 font-sans">
+                  Ayushman Bharat Digital Mission (ABDM) • Emergency Handoff Artifact
                 </p>
-                <div className="text-xs font-mono font-bold mt-1 text-slate-700 dark:text-slate-300">
-                  ENCOUNTER ID: {encounterId} • DOSSIER REF: EDOS-{encounterId}
-                </div>
               </div>
 
-              {/* Mock QR Verification */}
-              <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                <div className="w-14 h-14 bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-mono font-bold text-[9px] rounded">
-                  QR-VERIFIED
-                </div>
-                <span className="text-[9px] text-slate-500 mt-0.5 block">ABDM Fast-Track</span>
+              <div className="text-right font-sans">
+                <div className="text-[10px] text-slate-500 uppercase font-bold">Encounter Identifier</div>
+                <div className="font-mono text-xs font-bold text-slate-900">{encounterId}</div>
+                <div className="text-[10px] text-emerald-700 font-bold mt-1">● DIGITALLY SEALED</div>
               </div>
             </div>
 
-            {/* Transfer Routing Header */}
-            <div className="grid grid-cols-2 gap-4 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Origin / Referring Facility</span>
-                <span className="font-bold text-slate-900 dark:text-white text-sm">{patient.currentHospital}</span>
-                <span className="text-slate-500 block mt-0.5">Attending: {patient.attendingDoctor} ({patient.attendingRegNumber})</span>
+            {/* Section 1: Demographics & Facility Routing */}
+            <div className="grid grid-cols-2 gap-4 font-sans border-b border-slate-200 pb-4">
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Patient Information</div>
+                <div className="font-bold text-sm text-slate-900">{patient.name}</div>
+                <div className="text-slate-600 text-xs">
+                  Age: {patient.age} Yrs | Gender: {patient.gender === 'M' ? 'Male' : 'Female'} | Blood Group: {patient.bloodGroup}+
+                </div>
+                <div className="text-slate-600 text-xs font-mono">ABHA: {patient.abhaId}</div>
               </div>
 
-              <div>
-                <span className="text-slate-500 block text-[10px] uppercase font-bold">Receiving Higher Center</span>
-                <span className="font-bold text-sky-600 dark:text-sky-400 text-sm">{selectedHospital?.name}</span>
-                <span className="text-slate-500 block mt-0.5">Consultant: {selectedHospital?.receivingDoctor} • {selectedHospital?.cathLabNumber}</span>
-              </div>
-            </div>
-
-            {/* Patient Demographics */}
-            <div className="space-y-2">
-              <h4 className="font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1">
-                1. Patient Demographics & Identification
-              </h4>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Patient Name:</span>
-                  <span className="font-bold">{patient.name}</span>
+              <div className="space-y-1 text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Transfer Routing</div>
+                <div className="text-xs">
+                  <strong>Origin:</strong> {patient.currentHospital}
                 </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Age / Sex:</span>
-                  <span className="font-semibold">{patient.age} yrs / {patient.gender === 'M' ? 'Male' : 'Female'}</span>
+                <div className="text-xs">
+                  <strong>Destination:</strong> {selectedHospital?.name || 'SGPGI Lucknow'}
                 </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">Blood Group:</span>
-                  <span className="font-bold text-red-600">{patient.bloodGroup}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px]">ABHA ID:</span>
-                  <span className="font-mono font-bold text-emerald-600">{patient.abhaId}</span>
+                <div className="text-xs text-red-600 font-bold">
+                  Target Service: {selectedHospital?.cathLabNumber || 'Cath Lab 02'}
                 </div>
               </div>
             </div>
 
-            {/* Diagnosis & Clinical Summary */}
-            <div className="space-y-2">
-              <h4 className="font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1">
-                2. Clinical Presentation & Emergency Stabilization
-              </h4>
-              <p className="p-2.5 bg-red-50/50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-900/40 text-red-900 dark:text-red-300 font-semibold">
-                DIAGNOSIS: {clinical.diagnosis} (ICD-10: {clinical.icd10Code})
-              </p>
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                {clinical.historyOfPresentIllness}
+            {/* Section 2: Clinical Summary & Reason for Transfer */}
+            <div className="space-y-2 font-sans border-b border-slate-200 pb-4">
+              <div className="text-[10px] uppercase font-bold text-slate-500">Primary Emergency Diagnosis</div>
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded font-bold text-red-900 text-xs">
+                {clinical.diagnosis} (ICD-10 Code: {clinical.icd10Code})
+              </div>
+              <p className="text-slate-700 text-xs leading-relaxed">
+                <strong>HPI / Clinical Course:</strong> {clinical.historyOfPresentIllness}
               </p>
             </div>
 
-            {/* Stabilization & Vitals */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300 block">Vitals Prior to Transit:</span>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] text-slate-500 block">HR</span>
-                    <span className="font-bold text-sm text-red-600">{clinical.vitals.heartRate} bpm</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] text-slate-500 block">SpO2</span>
-                    <span className="font-bold text-sm text-sky-600">{clinical.vitals.spO2}%</span>
-                  </div>
-                  <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-                    <span className="text-[10px] text-slate-500 block">BP</span>
-                    <span className="font-bold text-sm text-emerald-600">{clinical.vitals.bloodPressure.split(' ')[0]}</span>
-                  </div>
+            {/* Section 3: Vitals at Dispatch */}
+            <div className="font-sans border-b border-slate-200 pb-4 space-y-2">
+              <div className="text-[10px] uppercase font-bold text-slate-500">Pre-Transit Vital Signs</div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-2 bg-slate-50 border border-slate-200 rounded">
+                  <div className="text-[10px] text-slate-500 font-bold">HR</div>
+                  <div className="font-bold text-red-600">{clinical.vitals.heartRate} bpm</div>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300 block">Critical Diagnostics:</span>
-                <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 space-y-1 text-[11px]">
-                  <div>• <strong>12-Lead ECG:</strong> 3.5mm ST Elevation V1-V4</div>
-                  <div>• <strong>Troponin-I:</strong> &gt; 4.8 ng/mL (Positive)</div>
-                  <div>• <strong>POCUS Echo:</strong> Anterior Wall Hypokinesia</div>
+                <div className="p-2 bg-slate-50 border border-slate-200 rounded">
+                  <div className="text-[10px] text-slate-500 font-bold">BP</div>
+                  <div className="font-bold text-slate-900">{clinical.vitals.bloodPressure}</div>
+                </div>
+                <div className="p-2 bg-slate-50 border border-slate-200 rounded">
+                  <div className="text-[10px] text-slate-500 font-bold">SpO2</div>
+                  <div className="font-bold text-emerald-600">{clinical.vitals.spO2}% (4L O2)</div>
+                </div>
+                <div className="p-2 bg-slate-50 border border-slate-200 rounded">
+                  <div className="text-[10px] text-slate-500 font-bold">RR</div>
+                  <div className="font-bold text-slate-900">{clinical.vitals.respiratoryRate} /min</div>
                 </div>
               </div>
             </div>
 
-            {/* Medications Administered */}
-            <div className="space-y-2">
-              <h4 className="font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1">
-                3. Medications & Emergency Dosing
-              </h4>
-              <table className="w-full text-left border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
-                <thead className="bg-slate-50 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+            {/* Section 4: Emergency Medications Administered */}
+            <div className="font-sans border-b border-slate-200 pb-4 space-y-2">
+              <div className="text-[10px] uppercase font-bold text-slate-500">Emergency Medications Log</div>
+              <table className="w-full text-left text-xs border border-slate-200 divide-y divide-slate-200">
+                <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-600">
                   <tr>
-                    <th className="p-2">Medication</th>
-                    <th className="p-2">Dose / Route</th>
-                    <th className="p-2">Time</th>
-                    <th className="p-2">Clinician</th>
+                    <th className="p-1.5">Drug Name</th>
+                    <th className="p-1.5">Dose</th>
+                    <th className="p-1.5">Route</th>
+                    <th className="p-1.5">Administered</th>
+                    <th className="p-1.5">Clinician</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-[11px]">
+                <tbody className="divide-y divide-slate-100">
                   {clinical.medications.map((m, idx) => (
                     <tr key={idx}>
-                      <td className="p-2 font-semibold">{m.drugName} ({m.category})</td>
-                      <td className="p-2">{m.dose} via {m.route}</td>
-                      <td className="p-2 font-mono">{m.timeAdministered}</td>
-                      <td className="p-2 text-slate-500">{m.administeredBy}</td>
+                      <td className="p-1.5 font-semibold">{m.drugName}</td>
+                      <td className="p-1.5">{m.dose}</td>
+                      <td className="p-1.5">{m.route}</td>
+                      <td className="p-1.5 font-mono">{m.timeAdministered}</td>
+                      <td className="p-1.5">{m.administeredBy}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Consent & Audit Verification */}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
-              <div className="flex justify-between font-bold text-slate-900 dark:text-white">
-                <span>Authorization & Consent Status:</span>
-                <span className="text-emerald-600 font-mono">
-                  {state.consent.type === 'EMERGENCY_OVERRIDE' ? 'EMERGENCY CLINICAL OVERRIDE AUDITED' : 'ABDM PATIENT CONSENT VALIDATED'}
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-500">
-                Purpose: {state.consent.purpose} • Timestamp: {state.consent.timestamp}
-              </div>
-              <div className="text-[10px] font-mono text-slate-400">
-                Audit Digest: {state.consent.auditHash}
-              </div>
-            </div>
-
-            {/* Doctor Signatures */}
-            <div className="pt-6 border-t border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-8 text-center text-xs">
-              <div>
-                <div className="h-10 border-b border-dashed border-slate-400 flex items-center justify-center font-serif italic text-slate-700 dark:text-slate-300">
-                  {patient.attendingDoctor}
-                </div>
-                <span className="text-slate-500 block mt-1">Referring Attending Physician</span>
-                <span className="font-mono text-[10px] text-slate-400">Reg: {patient.attendingRegNumber}</span>
+            {/* Section 5: Clinician Signatures & ABDM Hash */}
+            <div className="grid grid-cols-2 gap-6 font-sans pt-2">
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Referring Physician</div>
+                <div className="font-bold text-slate-900">{patient.attendingDoctor}</div>
+                <div className="text-[11px] text-slate-600 font-mono">Reg: {patient.attendingRegNumber}</div>
+                <div className="text-[10px] text-slate-400">Digitally signed via ABDM Bridge</div>
               </div>
 
-              <div>
-                <div className="h-10 border-b border-dashed border-slate-400 flex items-center justify-center font-serif italic text-slate-700 dark:text-slate-300">
-                  {selectedHospital?.receivingDoctor}
-                </div>
-                <span className="text-slate-500 block mt-1">Receiving Higher Center Interventionalist</span>
-                <span className="text-[10px] text-slate-400">{selectedHospital?.name}</span>
+              <div className="space-y-1 text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Receiving Interventionalist</div>
+                <div className="font-bold text-slate-900">{selectedHospital?.receivingDoctor}</div>
+                <div className="text-[11px] text-emerald-700 font-bold">Cath Lab 02 Direct Standby</div>
+                <div className="text-[10px] font-mono text-slate-400">HASH: {state.consent.auditHash.substring(0, 20)}...</div>
               </div>
             </div>
           </div>

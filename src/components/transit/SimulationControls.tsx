@@ -41,22 +41,22 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   return (
     <div
       id="simulation-sandbox-drawer"
-      className="fixed inset-0 z-50 flex items-center justify-end bg-slate-950/60 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs animate-fade-in"
     >
-      <div className="bg-slate-900 text-white w-full max-w-md h-full border-l border-slate-800 shadow-2xl p-6 overflow-y-auto flex flex-col justify-between space-y-6">
+      <div className="bg-white text-slate-800 w-full max-w-md h-full border-l border-slate-200 shadow-2xl p-6 overflow-y-auto flex flex-col justify-between space-y-6">
         <div className="space-y-5">
           {/* Drawer Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center space-x-2.5">
-              <Sliders className="w-5 h-5 text-amber-400" />
+              <Sliders className="w-5 h-5 text-red-600" />
               <div>
-                <h3 className="text-base font-bold text-white">Sandbox & Fallback Controls</h3>
-                <p className="text-xs text-slate-400">Pillar 4 Demonstration Suite</p>
+                <h3 className="text-base font-bold text-slate-900">Demonstration Sandbox</h3>
+                <p className="text-xs text-slate-500">Pillar 4 Real-time State & Edge Cases</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -64,18 +64,18 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
 
           {/* Active Error / Alert Status */}
           {state.isSimulatedError ? (
-            <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/50 space-y-2">
-              <div className="flex items-center space-x-2 text-red-400 font-bold text-xs">
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-2">
+              <div className="flex items-center space-x-2 text-red-700 font-bold text-xs">
                 <AlertTriangle className="w-4 h-4" />
                 <span>Simulated Anomaly Active</span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-700">
                 {state.simulatedErrorMessage}
               </p>
               <div className="pt-2 flex space-x-2">
                 <button
                   onClick={onResolveError}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
                 >
                   Resolve Anomaly
                 </button>
@@ -85,7 +85,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
                       onClose();
                       onOpenPdf();
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold border border-slate-700 flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold border border-slate-300 flex items-center gap-1 cursor-pointer"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     Use PDF Fallback
@@ -94,99 +94,114 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span>All simulated microservices operational (FHIR Gateway, GPS Telemetry, Cath Lab Bridge).</span>
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>All microservices operational (FHIR Gateway, GPS Telemetry, Cath Lab Bridge).</span>
             </div>
           )}
 
-          {/* Error Injection Suite */}
+          {/* Fast Forward Actions */}
           <div className="space-y-2.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-              1. Inject Edge-Case & Error Scenarios
-            </span>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Workflow Fast-Forward Shortcuts
+            </h4>
 
-            <button
-              onClick={() => onSimulateError('network_fail')}
-              className="w-full text-left p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 transition flex items-start space-x-3 text-xs"
-            >
-              <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-200 block">Simulate Network Interruption</span>
-                <span className="text-[11px] text-slate-400">Tests offline resilient fallback to generated E-Dossier PDF dispatch.</span>
-              </div>
-            </button>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={onFastForwardAcceptance}
+                className="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs text-slate-800 flex items-center justify-between transition cursor-pointer"
+              >
+                <div>
+                  <div className="font-bold flex items-center gap-1.5 text-slate-900">
+                    <FastForward className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Fast-Forward: Higher Center Acceptance</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Simulate Dr. Vivek Saxena accepting from SGPGI Lucknow
+                  </div>
+                </div>
+              </button>
 
-            <button
-              onClick={() => onSimulateError('hospital_busy')}
-              className="w-full text-left p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 transition flex items-start space-x-3 text-xs"
-            >
-              <Building2 className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-200 block">Cath Lab Overcapacity Alert</span>
-                <span className="text-[11px] text-slate-400">Tests real-time rerouting to alternate regional PCI centers.</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onSimulateError('consent_denied')}
-              className="w-full text-left p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 transition flex items-start space-x-3 text-xs"
-            >
-              <ShieldAlert className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-200 block">Simulate Consent Failure</span>
-                <span className="text-[11px] text-slate-400">Prompts attending physician for audited Emergency Life-Safety Override.</span>
-              </div>
-            </button>
+              <button
+                onClick={onFastForwardDispatch}
+                className="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs text-slate-800 flex items-center justify-between transition cursor-pointer"
+              >
+                <div>
+                  <div className="font-bold flex items-center gap-1.5 text-slate-900">
+                    <FastForward className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Fast-Forward: Ambulance Dispatched</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Simulate ALS-042 mobilization & real-time telemetry stream
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
 
-          {/* Quick Demo Fast-Forwards */}
+          {/* Edge Case Injectors */}
           <div className="space-y-2.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-              2. Demo Fast-Forward Actions
-            </span>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Simulate Real-World Failure Scenarios
+            </h4>
 
-            <button
-              onClick={() => {
-                onFastForwardAcceptance();
-                onClose();
-              }}
-              className="w-full p-2.5 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 text-xs font-semibold flex items-center justify-between transition"
-            >
-              <span className="flex items-center gap-2">
-                <FastForward className="w-4 h-4" />
-                Simulate Higher Center Acceptance (SGPGI)
-              </span>
-              <span className="text-[10px] bg-sky-500/30 px-1.5 py-0.5 rounded">1-Click</span>
-            </button>
+            <div className="space-y-2 text-xs">
+              <button
+                onClick={() => onSimulateError('network_fail')}
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-left transition cursor-pointer flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    <WifiOff className="w-3.5 h-3.5 text-red-600" />
+                    <span>Network Offline & ABDM Sync Timeout</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Tests offline physical PDF & printable handoff fallback.
+                  </p>
+                </div>
+              </button>
 
-            <button
-              onClick={() => {
-                onFastForwardDispatch();
-                onClose();
-              }}
-              className="w-full p-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs font-semibold flex items-center justify-between transition"
-            >
-              <span className="flex items-center gap-2">
-                <FastForward className="w-4 h-4" />
-                Simulate Ambulance Dispatch & En Route
-              </span>
-              <span className="text-[10px] bg-amber-500/30 px-1.5 py-0.5 rounded">1-Click</span>
-            </button>
+              <button
+                onClick={() => onSimulateError('hospital_busy')}
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-left transition cursor-pointer flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Cath Lab Emergency Diversion</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Simulates Cath Lab 02 occupied; prompts secondary center selection.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => onSimulateError('consent_denied')}
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 text-left transition cursor-pointer flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Unconscious Patient / Signature Inability</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Tests Emergency Clinical Override protocol & justification ledger.
+                  </p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Bottom Reset */}
-        <div className="pt-4 border-t border-slate-800 space-y-2">
+        {/* Reset */}
+        <div className="pt-4 border-t border-slate-100">
           <button
-            onClick={() => {
-              onReset();
-              onClose();
-            }}
-            className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center justify-center space-x-2 transition"
+            onClick={onReset}
+            className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-700 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center justify-center space-x-2"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span>Reset Demo to Initial Golden-Hour State</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Demo to Initial State</span>
           </button>
         </div>
       </div>
