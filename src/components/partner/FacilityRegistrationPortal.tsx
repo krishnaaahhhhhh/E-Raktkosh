@@ -42,7 +42,11 @@ import {
   ExternalLink,
   Laptop,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Search,
+  FileText,
+  Filter,
+  ArrowUpRight
 } from 'lucide-react';
 import { playTactileClick, playConfirmChime, playCodeRedAlert } from '../../lib/audio';
 
@@ -64,6 +68,11 @@ export const FacilityRegistrationPortal: React.FC = () => {
   const [submittedFacilityId, setSubmittedFacilityId] = useState<string | null>(null);
   const [copiedApiKey, setCopiedApiKey] = useState<boolean>(false);
   const [copiedPass, setCopiedPass] = useState<boolean>(false);
+
+  // Registry Filter & Search State
+  const [registryFilter, setRegistryFilter] = useState<'all' | 'hospital' | 'blood_bank' | 'ambulance'>('all');
+  const [registrySearch, setRegistrySearch] = useState<string>('');
+  const [selectedFacilityDetails, setSelectedFacilityDetails] = useState<any | null>(null);
 
   // FAQ Accordion Open States
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -251,6 +260,78 @@ export const FacilityRegistrationPortal: React.FC = () => {
     }
   };
 
+  // Export all recorded collaborations to CSV
+  const handleExportCollaborationsCSV = () => {
+    playTactileClick();
+    if (!liveFacilities || liveFacilities.length === 0) {
+      alert('No collaboration records available to export.');
+      return;
+    }
+    const headers = ['Facility ID', 'Category', 'Facility Name', 'Reg/License ID', 'City', 'State', 'Phone', 'Email', 'Capacity Matrix / Stock / Fleet', 'ABDM Verified', 'API Key', 'Created Timestamp'];
+    const rows = liveFacilities.map((fac) => {
+      const capacityDesc = fac.hospitalCapacity
+        ? `${fac.hospitalCapacity.icuBeds || 0} ICU, ${fac.hospitalCapacity.ventilators || 0} Vent, ${fac.hospitalCapacity.erTraumaBays || 0} ER`
+        : fac.bloodBankData
+        ? `8 Blood Groups Sync, ColdChain: ${fac.bloodBankData.coldChainStatus || 'OK'}`
+        : `${fac.ambulanceFleetData?.connectedCount || 1} Ambulances, GPS: ${fac.ambulanceFleetData?.gpsSyncType || 'Active'}`;
+      return [
+        fac.facilityId,
+        fac.facilityType,
+        `"${(fac.facilityName || '').replace(/"/g, '""')}"`,
+        `"${(fac.registrationNumber || '').replace(/"/g, '""')}"`,
+        fac.city || 'Lucknow',
+        fac.state || 'Uttar Pradesh',
+        fac.contactPhone || '',
+        fac.contactEmail || '',
+        `"${capacityDesc.replace(/"/g, '""')}"`,
+        'ABDM Verified',
+        fac.apiKey || 'pk_live_...',
+        fac.createdAt || new Date().toISOString()
+      ];
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `prathmikta_collaborations_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export all recorded collaborations to JSON
+  const handleExportCollaborationsJSON = () => {
+    playTactileClick();
+    if (!liveFacilities || liveFacilities.length === 0) {
+      alert('No collaboration records available to export.');
+      return;
+    }
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(liveFacilities, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `prathmikta_collaborations_log_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+  };
+
+  // Filter and search live registered facilities
+  const filteredFacilities = (liveFacilities || []).filter((fac) => {
+    const matchesType = registryFilter === 'all' || fac.facilityType === registryFilter;
+    const query = registrySearch.toLowerCase().trim();
+    if (!query) return matchesType;
+    const nameMatch = (fac.facilityName || '').toLowerCase().includes(query);
+    const idMatch = (fac.facilityId || '').toLowerCase().includes(query);
+    const cityMatch = (fac.city || '').toLowerCase().includes(query);
+    const phoneMatch = (fac.contactPhone || '').toLowerCase().includes(query);
+    const stateMatch = (fac.state || '').toLowerCase().includes(query);
+    return matchesType && (nameMatch || idMatch || cityMatch || phoneMatch || stateMatch);
+  });
+
+  const totalHospitalsCount = (liveFacilities || []).filter(f => f.facilityType === 'hospital').length;
+  const totalBloodBanksCount = (liveFacilities || []).filter(f => f.facilityType === 'blood_bank').length;
+  const totalAmbulanceCount = (liveFacilities || []).filter(f => f.facilityType === 'ambulance').length;
+
   const faqs = [
     {
       q: 'Is our patient data secure?',
@@ -276,7 +357,7 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. TOP NAVBAR (MATCHING THE ATTACHED SCREENSHOT) */}
       {/* ========================================================================= */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 px-4 sm:px-8 py-3.5">
+      <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 px-3 sm:px-6 py-3.5">
         <div className="w-full flex items-center justify-between">
           
           {/* Brand Logo & Sub-tag */}
@@ -351,7 +432,7 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 2. HERO SECTION WITH IMAGE & 3 STACKED STAT BADGES */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 px-4 sm:px-8 bg-gradient-to-b from-slate-50/80 via-white to-white">
+      <section className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-16 px-3 sm:px-6 bg-gradient-to-b from-slate-50/80 via-white to-white w-full">
         <div className="w-full">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -460,8 +541,8 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 3. 3 PRIMARY FACILITY ONBOARDING CARDS (WITH EXACT CHECKLIST) */}
       {/* ========================================================================= */}
-      <section className="px-4 sm:px-8 py-8">
-        <div className="max-w-7xl mx-auto">
+      <section className="px-3 sm:px-6 py-6 w-full">
+        <div className="w-full">
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
@@ -582,172 +663,10 @@ export const FacilityRegistrationPortal: React.FC = () => {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. WHY IT IS IMPORTANT & CORE ADVANTAGES */}
-      {/* ========================================================================= */}
-      <section id="why-important" className="px-4 sm:px-8 py-12 bg-slate-50/60 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto">
-          
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* Left Column: Why It Is Important (5 items) */}
-            <div className="lg:col-span-5 space-y-5 text-left">
-              
-              <div className="space-y-1">
-                <div className="w-8 h-1 bg-[#1d63ff] rounded-full"></div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Why It Is Important
-                </h2>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-snug">
-                    Emergencies don't wait. Real-time visibility saves critical minutes.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-snug">
-                    Unified healthcare data helps responders make faster decisions.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-snug">
-                    Decentralized resource visibility prevents unnecessary hospital overload.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-snug">
-                    Live blood and bed availability improves emergency preparedness.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold leading-snug">
-                    Connected facilities create a stronger and more resilient healthcare ecosystem.
-                  </p>
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Right Column: Core Advantages (2x3 Grid) */}
-            <div id="advantages" className="lg:col-span-7 space-y-5 text-left">
-              
-              <div className="space-y-1">
-                <div className="w-8 h-1 bg-[#1d63ff] rounded-full"></div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Core Advantages
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
-                    <Zap className="w-5 h-5 fill-white text-white" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">Zero-Delay Routing</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Real-time data enables faster emergency routing and response.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
-                    <Network className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">Decentralized Load Balancing</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Smart distribution of patients and resources across facilities.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/20">
-                    <Shield className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">ABDM Compliant</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Designed around India's digital health ecosystem and standards.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/20">
-                    <LinkIcon className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">Interoperable Systems</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Works alongside existing hospital and emergency systems.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/20">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">Data Security &amp; Privacy</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Secure access, encrypted communication, privacy focused.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-500/20">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h4 className="text-sm font-black text-slate-900">Scalable &amp; Future Ready</h4>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                      Scales across cities, districts, and nationwide networks.
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
       {/* 5. "HOW IT WORKS" 3-STEP PROCESS SECTION */}
       {/* ========================================================================= */}
-      <section id="how-it-works" className="px-4 sm:px-8 py-12 bg-white border-t border-slate-100">
-        <div className="max-w-7xl mx-auto text-left space-y-6">
+      <section id="how-it-works" className="px-3 sm:px-6 py-10 bg-white border-t border-slate-100 w-full">
+        <div className="w-full text-left space-y-6">
           
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -871,8 +790,8 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 6. "BUILT FOR EMERGENCY-SPEED HEALTHCARE" */}
       {/* ========================================================================= */}
-      <section className="px-4 sm:px-8 py-6">
-        <div className="max-w-7xl mx-auto rounded-3xl bg-[#051838] border border-blue-900/60 p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl">
+      <section className="px-3 sm:px-6 py-6 w-full">
+        <div className="w-full rounded-3xl bg-[#051838] border border-blue-900/60 p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl">
           
           <div className="absolute inset-0 opacity-15 pointer-events-none flex items-center">
             <svg className="w-full h-24" viewBox="0 0 1000 100" preserveAspectRatio="none">
@@ -927,8 +846,8 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 7. "BUILT FOR TRUST" + FAQ ACCORDION */}
       {/* ========================================================================= */}
-      <section id="security" className="px-4 sm:px-8 py-12 bg-white">
-        <div className="max-w-7xl mx-auto">
+      <section id="security" className="px-3 sm:px-6 py-10 bg-white w-full">
+        <div className="w-full">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             
@@ -1055,113 +974,291 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 7.5 LIVE MONGODB PERSISTED REGISTRY & VERIFIED PARTNER AUDIT TABLE */}
       {/* ========================================================================= */}
-      <section id="live-db-registry" className="px-4 sm:px-8 py-10 bg-slate-900 text-white border-y border-slate-800">
-        <div className="max-w-7xl mx-auto space-y-6 text-left">
+      <section id="live-db-registry" className="px-3 sm:px-6 py-8 bg-[#061122] text-white border-y border-slate-800 w-full">
+        <div className="w-full space-y-6 text-left">
           
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Header & Main Actions */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 font-mono">
-                  LIVE MONGODB ATLAS SYNC ACTIVE
+                  LIVE DATABASE &amp; COMMAND COLLABORATION AUDIT
                 </span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
                 <Database className="w-6 h-6 text-emerald-400" />
-                <span>Verified Facilities Registry (MongoDB Database)</span>
+                <span>Verified Facilities &amp; Collaboration Registry</span>
               </h3>
               <p className="text-xs sm:text-sm text-slate-400">
-                Live records stored in the cloud cluster ({liveFacilities?.length || 0} Facilities Registered). Auto-updates in real-time upon new registrations.
+                Track every hospital, blood bank, and ambulance fleet that collaborated with the national emergency grid.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleExportCollaborationsCSV}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                title="Export all collaboration entries to CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-400" />
+                <span>Export CSV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCollaborationsJSON}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                title="Export raw JSON log of all entries"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Export JSON Log</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleOpenRegistration('hospital')}
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all active:scale-95"
+                className="px-4 py-2 rounded-xl bg-[#1d63ff] hover:bg-blue-600 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-blue-500/20 cursor-pointer transition-all active:scale-95"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Register New Facility</span>
+                <Plus className="w-4 h-4" />
+                <span>+ Register New Partner</span>
               </button>
             </div>
           </div>
 
+          {/* Quick Summary Metric Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Total Collaborations</div>
+              <div className="text-2xl font-black text-white font-mono">{liveFacilities?.length || 0}</div>
+              <div className="text-[10px] text-emerald-400 font-medium">● 100% Persisted &amp; Live</div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-blue-950/40 border border-blue-800/40 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-blue-300">Hospitals Connected</div>
+              <div className="text-2xl font-black text-blue-400 font-mono">{totalHospitalsCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">ICU Beds &amp; Trauma Matrix Sync</div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-800/40 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-red-300">Blood Banks Connected</div>
+              <div className="text-2xl font-black text-rose-400 font-mono">{totalBloodBanksCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">8 Blood Types Live Inventory</div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800/40 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-300">EMS Fleets Connected</div>
+              <div className="text-2xl font-black text-emerald-400 font-mono">{totalAmbulanceCount}</div>
+              <div className="text-[10px] text-slate-400 font-medium">ALS/BLS GPS Tracking</div>
+            </div>
+          </div>
+
+          {/* Search & Category Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRegistryFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  registryFilter === 'all'
+                    ? 'bg-white text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                All Partners ({liveFacilities?.length || 0})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRegistryFilter('hospital')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  registryFilter === 'hospital'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Hospitals ({totalHospitalsCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRegistryFilter('blood_bank')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  registryFilter === 'blood_bank'
+                    ? 'bg-rose-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Droplet className="w-3.5 h-3.5" />
+                <span>Blood Banks ({totalBloodBanksCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRegistryFilter('ambulance')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  registryFilter === 'ambulance'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>Ambulance Fleets ({totalAmbulanceCount})</span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={registrySearch}
+                onChange={(e) => setRegistrySearch(e.target.value)}
+                placeholder="Search facility name, ID, city..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all font-medium"
+              />
+              {registrySearch && (
+                <button
+                  type="button"
+                  onClick={() => setRegistrySearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Database Table Container */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 overflow-hidden shadow-2xl">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/90 overflow-hidden shadow-2xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">
+                <thead className="bg-[#0b1b36] text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">
                   <tr>
-                    <th className="py-3 px-4">Facility ID</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Facility Name</th>
-                    <th className="py-3 px-4">Location</th>
-                    <th className="py-3 px-4">Capacity / Beds</th>
-                    <th className="py-3 px-4">ABDM Status</th>
-                    <th className="py-3 px-4">Database State</th>
+                    <th className="py-3.5 px-4">Facility &amp; Collab ID</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Facility Name &amp; Contact</th>
+                    <th className="py-3.5 px-4">Location</th>
+                    <th className="py-3.5 px-4">Live Matrix / Stock</th>
+                    <th className="py-3.5 px-4">ABDM Status</th>
+                    <th className="py-3.5 px-4">API Token</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-300 font-medium">
-                  {liveFacilities && liveFacilities.length > 0 ? (
-                    liveFacilities.map((fac, idx) => (
-                      <tr key={fac.facilityId || idx} className="hover:bg-slate-900/50 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-sky-400">
-                          {fac.facilityId}
+                  {filteredFacilities && filteredFacilities.length > 0 ? (
+                    filteredFacilities.map((fac, idx) => (
+                      <tr key={fac.facilityId || idx} className="hover:bg-slate-900/60 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-sky-400 whitespace-nowrap">
+                          <div>{fac.facilityId}</div>
+                          <div className="text-[10px] text-slate-500 font-sans font-normal">
+                            {fac.createdAt ? new Date(fac.createdAt).toLocaleDateString() : 'Active Partner'}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${
                             fac.facilityType === 'hospital'
-                              ? 'bg-blue-950 text-blue-400 border border-blue-800/50'
+                              ? 'bg-blue-950 text-blue-400 border border-blue-800/60'
                               : fac.facilityType === 'blood_bank'
-                              ? 'bg-red-950 text-red-400 border border-red-800/50'
-                              : 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
+                              ? 'bg-red-950 text-red-400 border border-red-800/60'
+                              : 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
                           }`}>
-                            {fac.facilityType?.replace('_', ' ')}
+                            {fac.facilityType === 'hospital' && <Building2 className="w-3 h-3" />}
+                            {fac.facilityType === 'blood_bank' && <Droplet className="w-3 h-3" />}
+                            {fac.facilityType === 'ambulance' && <Truck className="w-3 h-3" />}
+                            <span>{fac.facilityType?.replace('_', ' ')}</span>
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-white text-xs">{fac.facilityName}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{fac.registrationNumber || fac.contactPhone}</div>
+                          <div className="font-bold text-white text-xs sm:text-sm">{fac.facilityName}</div>
+                          <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                            {fac.contactPhone && <span>📞 {fac.contactPhone}</span>}
+                            {fac.registrationNumber && <span className="font-mono text-slate-500">[{fac.registrationNumber}]</span>}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4 text-slate-400">
-                          {fac.city || 'Lucknow'}, {fac.state || 'Uttar Pradesh'}
+                        <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-500" />
+                            <span>{fac.city || 'Lucknow'}, {fac.state || 'Uttar Pradesh'}</span>
+                          </div>
                         </td>
                         <td className="py-3.5 px-4">
                           {fac.hospitalCapacity ? (
-                            <span className="font-mono text-emerald-400">
+                            <span className="font-mono text-emerald-400 text-xs">
                               {fac.hospitalCapacity.icuBeds || 0} ICU • {fac.hospitalCapacity.ventilators || 0} Vent • {fac.hospitalCapacity.erTraumaBays || 0} ER
                             </span>
                           ) : fac.bloodBankData ? (
-                            <span className="font-mono text-rose-400">
-                              8 Blood Groups Active
+                            <span className="font-mono text-rose-400 text-xs">
+                              8 Blood Groups Active • {fac.bloodBankData.coldChainStatus || 'Cold Chain OK'}
                             </span>
                           ) : (
-                            <span className="font-mono text-emerald-400">
-                              {fac.ambulanceFleetData?.connectedCount || 5} Connected Fleets
+                            <span className="font-mono text-emerald-400 text-xs">
+                              {fac.ambulanceFleetData?.connectedCount || 5} Ambulances • {fac.ambulanceFleetData?.gpsSyncType || 'GPS Sync'}
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>VERIFIED</span>
                           </span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            <span>PERSISTED IN DB</span>
-                          </span>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(fac.apiKey || 'pk_live_default_partner', 'key')}
+                            className="hover:text-white flex items-center gap-1 cursor-pointer bg-slate-900 px-2 py-1 rounded border border-slate-800"
+                            title="Click to copy API Key"
+                          >
+                            <Key className="w-3 h-3 text-amber-400" />
+                            <span>{(fac.apiKey || 'pk_live_...').slice(0, 10)}...</span>
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFacilityDetails(fac)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+                              title="Inspect complete collaboration entry"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playConfirmChime();
+                                if (fac.facilityType === 'hospital') setMode('hospital');
+                                else if (fac.facilityType === 'blood_bank') setMode('bloodbank');
+                                else setMode('ambulance');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              <span>Open</span>
+                              <ArrowUpRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <Database className="w-8 h-8 text-slate-600 animate-pulse" />
-                          <span className="text-xs">No custom facilities registered in current session yet. Click "Register New Facility" above to add one.</span>
+                      <td colSpan={8} className="py-12 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-2.5">
+                          <Database className="w-10 h-10 text-slate-600 animate-pulse" />
+                          <span className="text-sm font-semibold text-slate-400">
+                            {registrySearch ? `No registered facilities match "${registrySearch}"` : 'No custom facilities registered yet.'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRegistration('hospital')}
+                            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-all cursor-pointer mt-1"
+                          >
+                            + Register First Facility Now
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1171,50 +1268,60 @@ export const FacilityRegistrationPortal: React.FC = () => {
             </div>
           </div>
 
-        </div>
-      </section>
+          {/* Quick Record Inspection Modal */}
+          {selectedFacilityDetails && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-xl w-full text-white space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-emerald-400" />
+                    <span className="font-bold text-sm">Collaboration Audit Record</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFacilityDetails(null)}
+                    className="text-slate-400 hover:text-white p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-      {/* ========================================================================= */}
-      {/* 8. PRE-FOOTER CTA STRIP */}
-      {/* ========================================================================= */}
-      <section className="px-4 sm:px-8 py-6">
-        <div className="max-w-7xl mx-auto rounded-3xl bg-blue-50/90 border border-blue-200/90 p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-4 text-left shadow-xs">
-          
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#1d63ff] text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div className="space-y-0.5">
-              <h3 className="text-base font-black text-slate-900">
-                Ready to Connect Your Facility?
-              </h3>
-              <p className="text-xs text-slate-600 font-medium">
-                Join Prathmikta and become part of a faster, smarter, and more connected emergency healthcare network.
-              </p>
-            </div>
-          </div>
+                <div className="space-y-2.5 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                    <div className="text-slate-400 uppercase text-[10px] font-bold">Facility Name</div>
+                    <div className="font-bold text-sm text-white">{selectedFacilityDetails.facilityName}</div>
+                    <div className="text-slate-400 font-mono text-[11px]">ID: {selectedFacilityDetails.facilityId}</div>
+                  </div>
 
-          <div className="flex flex-wrap items-center gap-4 shrink-0 w-full md:w-auto justify-between md:justify-end">
-            <button
-              type="button"
-              onClick={() => handleOpenRegistration('hospital')}
-              className="px-5 py-3 rounded-xl bg-[#1d63ff] hover:bg-blue-700 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <span>Register Facility</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">Type</div>
+                      <div className="font-bold text-emerald-400 capitalize">{selectedFacilityDetails.facilityType}</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">City &amp; State</div>
+                      <div className="font-bold text-white">{selectedFacilityDetails.city || 'Lucknow'}, {selectedFacilityDetails.state || 'UP'}</div>
+                    </div>
+                  </div>
 
-            <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-              <span>Already registered?</span>
-              <button
-                type="button"
-                onClick={() => setMode('reception')}
-                className="font-bold text-[#1d63ff] hover:underline cursor-pointer"
-              >
-                Access Partner Dashboard
-              </button>
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1 font-mono text-[11px]">
+                    <div className="text-slate-400 uppercase text-[10px] font-bold font-sans">API Key</div>
+                    <div className="text-amber-300 break-all">{selectedFacilityDetails.apiKey || 'pk_live_default'}</div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFacilityDetails(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                  >
+                    Close Inspection
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </section>
@@ -1222,8 +1329,8 @@ export const FacilityRegistrationPortal: React.FC = () => {
       {/* ========================================================================= */}
       {/* 9. COMPREHENSIVE 5-COLUMN DARK NAVY FOOTER */}
       {/* ========================================================================= */}
-      <footer className="bg-[#051329] text-white px-4 sm:px-8 pt-12 pb-8 border-t border-slate-900">
-        <div className="max-w-7xl mx-auto space-y-10 text-left">
+      <footer className="bg-[#051329] text-white px-3 sm:px-6 pt-12 pb-8 border-t border-slate-900 w-full">
+        <div className="w-full space-y-10 text-left">
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
             
@@ -1497,179 +1604,190 @@ export const FacilityRegistrationPortal: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* 10. EXACT MATCHING REGISTRATION MODAL (HOSPITAL, BLOOD BANK, AMBULANCE, SUCCESS) */}
+      {/* 10. ENHANCED LARGE & ZOOM-OPTIMIZED REGISTRATION MODAL */}
       {/* ========================================================================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden max-h-[96vh] flex flex-col text-left my-auto animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-8 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-5xl 2xl:max-w-6xl overflow-hidden max-h-[94vh] flex flex-col text-left my-auto animate-in zoom-in-95">
             
-            {/* Top Navigation & Status Strip (EXACT AS SCREENSHOT) */}
-            <div className="bg-[#0b1b36] text-white px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="flex items-center gap-1 text-emerald-400 font-bold">
+            {/* Top Navigation & Status Strip */}
+            <div className="bg-[#0b1b36] text-white px-5 sm:px-8 py-3.5 flex items-center justify-between text-xs sm:text-sm shrink-0 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/40">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  LIVE
+                  LIVE GRID ACTIVE
                 </span>
-                <span className="font-mono text-slate-300 font-bold">ABDM - NATIONAL EMERGENCY GRID</span>
-                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">Form v2.4</span>
+                <span className="font-mono text-slate-200 font-black tracking-wide">ABDM &bull; NATIONAL EMERGENCY HEALTHCARE GRID</span>
+                <span className="hidden sm:inline-block text-[11px] bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-lg border border-slate-700 font-mono">Form v2.5 High-Def</span>
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="hidden sm:flex items-center gap-1.5 text-slate-300 text-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Secure &bull; Encrypted &bull; ABDM Compliant</span>
+                <div className="hidden md:flex items-center gap-2 text-slate-300 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>256-Bit Encrypted &bull; ABDM Compliant &bull; Real-Time</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-slate-800"
+                  className="text-slate-400 hover:text-white transition-colors cursor-pointer p-1.5 rounded-xl hover:bg-slate-800"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* STEP 3: SUCCESSFUL CONFIRMATION VIEW (BOTTOM-RIGHT IN SCREENSHOT) */}
+            {/* STEP 3: SUCCESSFUL CONFIRMATION VIEW */}
             {registrationStep === 3 ? (
-              <div className="bg-[#031d16] text-white p-6 sm:p-10 flex-1 overflow-y-auto flex flex-col justify-between space-y-8 relative">
+              <div className="bg-[#031d16] text-white p-6 sm:p-10 md:p-12 flex-1 overflow-y-auto flex flex-col justify-between space-y-8 relative">
                 
-                {/* Background Festive Subtle Grid */}
-                <div className="absolute inset-0 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
+                {/* Background Subtle Grid */}
+                <div className="absolute inset-0 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:20px_20px] opacity-15 pointer-events-none"></div>
 
                 <div className="text-center space-y-4 relative z-10 pt-2">
                   
-                  {/* Huge Green Success Icon */}
-                  <div className="w-20 h-20 rounded-full bg-emerald-500/20 text-emerald-400 border-2 border-emerald-400/40 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
-                    <Check className="w-10 h-10 stroke-[3]" />
+                  {/* Big Green Success Badge */}
+                  <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 text-emerald-400 border-2 border-emerald-400/50 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/40">
+                    <Check className="w-12 h-12 stroke-[3]" />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                      Registration Successful!
+                  <div className="space-y-2">
+                    <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                      Registration &amp; Collaboration Live!
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
-                      Your facility is now connected to Prathmikta National Emergency Grid.<br />
-                      You can now access your partner dashboard and start managing live data.
+                    <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto leading-relaxed">
+                      Your facility is now permanently registered in the National Emergency Grid and saved in the central database cluster.
                     </p>
                   </div>
 
                 </div>
 
-                {/* 2 Credentials Cards in Grid (As Screenshot) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+                {/* 2 Credentials Cards in Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 relative z-10">
                   
                   {/* Card 1: API Key */}
-                  <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 space-y-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
-                      <Key className="w-4 h-4 text-amber-400" />
-                      <span>Your Secure API Key</span>
+                  <div className="p-5 rounded-3xl bg-emerald-950/70 border border-emerald-500/40 space-y-3 shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-black text-amber-300">
+                        <Key className="w-5 h-5 text-amber-400" />
+                        <span>Production API Key</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                        ACTIVE
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-black/40 border border-emerald-500/20">
+                    <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-black/60 border border-emerald-500/30">
                       <input
                         type="text"
                         readOnly
                         value={generatedApiKey}
-                        className="bg-transparent text-emerald-300 text-[11px] font-mono w-full focus:outline-none truncate"
+                        className="bg-transparent text-emerald-300 text-xs sm:text-sm font-mono w-full focus:outline-none truncate font-bold px-1"
                       />
                       <button
                         type="button"
                         onClick={() => copyToClipboard(generatedApiKey, 'key')}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer flex items-center gap-1 shrink-0"
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-xs font-black uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shrink-0 transition-all active:scale-95"
                       >
-                        {copiedApiKey ? <CheckCheck className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
+                        {copiedApiKey ? <CheckCheck className="w-3.5 h-3.5 text-slate-950" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copiedApiKey ? 'COPIED' : 'COPY'}</span>
                       </button>
                     </div>
 
-                    <p className="text-[10px] text-slate-400">
-                      Keep this key secure. This will be used for API integration.
+                    <p className="text-xs text-slate-400">
+                      Keep this key secure. Use for webhook triggers and hospital MIS/EMR sync.
                     </p>
                   </div>
 
                   {/* Card 2: Dashboard Login Credentials */}
-                  <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 space-y-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
-                      <Laptop className="w-4 h-4 text-emerald-400" />
-                      <span>Dashboard Login Credentials</span>
+                  <div className="p-5 rounded-3xl bg-emerald-950/70 border border-emerald-500/40 space-y-3 shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-black text-emerald-300">
+                        <Laptop className="w-5 h-5 text-emerald-400" />
+                        <span>Dashboard Login Credentials</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                        1-CLICK READY
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-left">
-                      <div className="p-2 rounded-xl bg-black/40 border border-emerald-500/20 space-y-0.5">
-                        <div className="text-[9px] uppercase tracking-wider text-slate-400">Email / Username</div>
-                        <div className="text-xs font-semibold text-white truncate">{generatedEmail}</div>
+                    <div className="grid grid-cols-2 gap-3 text-left">
+                      <div className="p-3 rounded-2xl bg-black/60 border border-emerald-500/30 space-y-1">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Username</div>
+                        <div className="text-xs sm:text-sm font-bold text-white truncate">{generatedEmail}</div>
                       </div>
-                      <div className="p-2 rounded-xl bg-black/40 border border-emerald-500/20 space-y-0.5 relative">
-                        <div className="text-[9px] uppercase tracking-wider text-slate-400">Password</div>
-                        <div className="text-xs font-mono font-bold text-emerald-300 flex items-center justify-between">
+                      <div className="p-3 rounded-2xl bg-black/60 border border-emerald-500/30 space-y-1 relative">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Password</div>
+                        <div className="text-xs sm:text-sm font-mono font-black text-emerald-300 flex items-center justify-between">
                           <span>{generatedPassword}</span>
                           <button
                             type="button"
                             onClick={() => copyToClipboard(generatedPassword, 'pass')}
-                            className="text-slate-400 hover:text-white cursor-pointer"
+                            className="text-slate-400 hover:text-white cursor-pointer p-0.5"
                           >
-                            {copiedPass ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copiedPass ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    <p className="text-[10px] text-slate-400">
-                      You can change your password after first login.
+                    <p className="text-xs text-slate-400">
+                      You can change your password anytime after logging into your dashboard.
                     </p>
                   </div>
 
                 </div>
 
-                {/* 4 Status Badges in Row (As Screenshot) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center relative z-10">
-                  <div className="p-2.5 rounded-xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                {/* 4 Status Badges in Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center relative z-10">
+                  <div className="p-3.5 rounded-2xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div className="text-left leading-tight">
-                      <div className="text-[9px] text-slate-400">Facility Status</div>
-                      <div className="text-xs font-black text-emerald-300">VERIFIED</div>
+                      <div className="text-[10px] text-slate-400">Facility Status</div>
+                      <div className="text-xs sm:text-sm font-black text-emerald-300">VERIFIED</div>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="p-3.5 rounded-2xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2.5">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div className="text-left leading-tight">
-                      <div className="text-[9px] text-slate-400">ABDM Compliance</div>
-                      <div className="text-xs font-black text-emerald-300">COMPLIANT</div>
+                      <div className="text-[10px] text-slate-400">ABDM Compliance</div>
+                      <div className="text-xs sm:text-sm font-black text-emerald-300">COMPLIANT</div>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  <div className="p-3.5 rounded-2xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                     <div className="text-left leading-tight">
-                      <div className="text-[9px] text-slate-400">Connection Status</div>
-                      <div className="text-xs font-black text-emerald-300">&bull; LIVE</div>
+                      <div className="text-[10px] text-slate-400">Grid Connection</div>
+                      <div className="text-xs sm:text-sm font-black text-emerald-300">&bull; LIVE DB SYNC</div>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="p-3.5 rounded-2xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center gap-2.5">
+                    <Activity className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div className="text-left leading-tight">
-                      <div className="text-[9px] text-slate-400">Data Sync</div>
-                      <div className="text-xs font-black text-emerald-300">ACTIVE</div>
+                      <div className="text-[10px] text-slate-400">Data Stream</div>
+                      <div className="text-xs sm:text-sm font-black text-emerald-300">ACTIVE</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom CTA Buttons (As Screenshot) */}
+                {/* Bottom CTA Buttons */}
                 <div className="flex flex-wrap items-center justify-center gap-4 relative z-10 pt-2">
                   <button
                     type="button"
                     onClick={() => {
                       playConfirmChime();
                       setIsModalOpen(false);
-                      setMode('hospital');
+                      if (activeFacilityType === 'hospital') setMode('hospital');
+                      else if (activeFacilityType === 'blood_bank') setMode('bloodbank');
+                      else setMode('ambulance');
                     }}
-                    className="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2.5 shadow-xl shadow-emerald-500/30 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]"
+                    className="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm sm:text-base flex items-center gap-3 shadow-xl shadow-emerald-500/30 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]"
                   >
-                    <span>Login &amp; Open Hospital Dashboard (/h)</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Launch Facility Live Dashboard</span>
+                    <ArrowRight className="w-5 h-5" />
                   </button>
 
                   <button
@@ -1678,199 +1796,199 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       playTactileClick();
                       alert(`Downloading Prathmikta Facility Certificate: ${submittedFacilityId || 'PRATH-FACILITY-2024'}`);
                     }}
-                    className="px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm border border-slate-700 flex items-center gap-2 cursor-pointer transition-all"
+                    className="px-6 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm border border-slate-700 flex items-center gap-2.5 cursor-pointer transition-all"
                   >
                     <Download className="w-4 h-4" />
                     <span>Download Registration Certificate</span>
                   </button>
                 </div>
 
-                <div className="text-center text-[10px] text-slate-400 relative z-10">
-                  🔒 All your data is encrypted and secured under ABDM &amp; National Health Stack guidelines.
+                <div className="text-center text-xs text-slate-400 relative z-10">
+                  🔒 All collaboration data is encrypted and permanently recorded under ABDM &amp; National Emergency Stack guidelines.
                 </div>
 
               </div>
             ) : (
-              /* FORM FLOW CONTAINER (STEP 1 & 2) */
-              <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
+              /* FORM FLOW CONTAINER (STEP 1 & 2) - ENLARGED & HIGH CONTRAST */
+              <div className="p-6 sm:p-8 md:p-10 overflow-y-auto flex-1 space-y-6">
                 
-                {/* Form Title & Progress Steps (Matches Screenshot) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div className="space-y-0.5">
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Partner Facility Registration
+                {/* Form Title & Progress Steps */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+                  <div className="space-y-1">
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      Partner Facility Onboarding &amp; Registration
                     </h2>
-                    <p className="text-xs text-slate-500 font-medium">
-                      Join India's Unified Emergency Healthcare Network
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                      Connect your institution to the unified national emergency dispatch grid.
                     </p>
                   </div>
 
                   {/* Step Tracker Indicator */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-[#1d63ff] text-white text-[10px] font-black flex items-center justify-center">
+                  <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-xl bg-[#1d63ff] text-white text-xs font-black flex items-center justify-center shadow">
                         1
                       </div>
                       <div className="text-left">
-                        <div className="text-[10px] font-black text-slate-900">Step 1</div>
-                        <div className="text-[9px] text-slate-400">Basic &amp; Legal Info</div>
+                        <div className="text-xs font-black text-slate-900">Step 1</div>
+                        <div className="text-[10px] text-slate-500 font-medium">Basic &amp; Legal Info</div>
                       </div>
                     </div>
 
-                    <div className="w-8 h-0.5 bg-slate-200"></div>
+                    <div className="w-6 h-0.5 bg-slate-300"></div>
 
-                    <div className="flex items-center gap-1.5 opacity-60">
-                      <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
+                    <div className="flex items-center gap-2 opacity-70">
+                      <div className="w-6 h-6 rounded-xl bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">
                         2
                       </div>
                       <div className="text-left">
-                        <div className="text-[10px] font-bold text-slate-600">Step 2</div>
-                        <div className="text-[9px] text-slate-400">Live Matrix &amp; Capabilities</div>
+                        <div className="text-xs font-bold text-slate-700">Step 2</div>
+                        <div className="text-[10px] text-slate-500">Live Matrix &amp; Sync</div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* 3 Facility Selector Tabs (EXACT SCREENSHOT COLOR & DESIGN) */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {/* 3 Facility Selector Tabs */}
+                <div className="grid grid-cols-3 gap-3 sm:gap-4">
                   
-                  {/* Tab 1: Hospital / ICU (Blue when selected) */}
+                  {/* Tab 1: Hospital / ICU */}
                   <button
                     type="button"
                     onClick={() => {
                       playTactileClick();
                       setActiveFacilityType('hospital');
                     }}
-                    className={`py-2.5 sm:py-3 px-3 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`py-3.5 sm:py-4 px-4 rounded-2xl text-xs sm:text-sm md:text-base font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
                       activeFacilityType === 'hospital'
-                        ? 'bg-[#1d63ff] text-white shadow-md shadow-blue-500/20'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+                        ? 'bg-[#1d63ff] text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                     }`}
                   >
-                    <Building2 className={`w-4 h-4 ${activeFacilityType === 'hospital' ? 'text-white' : 'text-slate-500'}`} />
+                    <Building2 className={`w-5 h-5 ${activeFacilityType === 'hospital' ? 'text-white' : 'text-slate-600'}`} />
                     <span>Hospital / ICU</span>
                   </button>
 
-                  {/* Tab 2: Blood Bank (Crimson Red when selected) */}
+                  {/* Tab 2: Blood Bank */}
                   <button
                     type="button"
                     onClick={() => {
                       playTactileClick();
                       setActiveFacilityType('blood_bank');
                     }}
-                    className={`py-2.5 sm:py-3 px-3 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`py-3.5 sm:py-4 px-4 rounded-2xl text-xs sm:text-sm md:text-base font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
                       activeFacilityType === 'blood_bank'
-                        ? 'bg-[#c9182b] text-white shadow-md shadow-red-500/20'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+                        ? 'bg-[#c9182b] text-white shadow-lg shadow-red-500/30 ring-2 ring-red-400'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                     }`}
                   >
-                    <Droplet className={`w-4 h-4 ${activeFacilityType === 'blood_bank' ? 'fill-white text-white' : 'fill-rose-500 text-rose-500'}`} />
+                    <Droplet className={`w-5 h-5 ${activeFacilityType === 'blood_bank' ? 'fill-white text-white' : 'fill-rose-500 text-rose-500'}`} />
                     <span>Blood Bank</span>
                   </button>
 
-                  {/* Tab 3: Ambulance Fleet (Blue when selected) */}
+                  {/* Tab 3: Ambulance Fleet */}
                   <button
                     type="button"
                     onClick={() => {
                       playTactileClick();
                       setActiveFacilityType('ambulance');
                     }}
-                    className={`py-2.5 sm:py-3 px-3 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    className={`py-3.5 sm:py-4 px-4 rounded-2xl text-xs sm:text-sm md:text-base font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
                       activeFacilityType === 'ambulance'
-                        ? 'bg-[#1d63ff] text-white shadow-md shadow-blue-500/20'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                     }`}
                   >
-                    <Truck className={`w-4 h-4 ${activeFacilityType === 'ambulance' ? 'text-white' : 'text-slate-500'}`} />
+                    <Truck className={`w-5 h-5 ${activeFacilityType === 'ambulance' ? 'text-white' : 'text-slate-600'}`} />
                     <span>Ambulance Fleet</span>
                   </button>
 
                 </div>
 
                 {/* FORM CONTENT ACCORDING TO SELECTED TAB */}
-                <form onSubmit={handleSubmitRegistration} className="space-y-6">
+                <form onSubmit={handleSubmitRegistration} className="space-y-7">
                   
                   {/* ========================================================================= */}
-                  {/* VIEW 1: HOSPITAL / ICU REGISTRATION FORM (TOP-LEFT SCREENSHOT) */}
+                  {/* VIEW 1: HOSPITAL / ICU REGISTRATION FORM */}
                   {/* ========================================================================= */}
                   {activeFacilityType === 'hospital' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div className="space-y-6 animate-in fade-in">
                       
                       {/* Section 1: Facility Basic & Legal Information */}
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Facility Basic &amp; Legal Information
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Hospital Name <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Hospital Name <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={hospitalForm.hospitalName}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, hospitalName: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Hospital ID / Code <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Hospital ID / Code <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={hospitalForm.hospitalCode}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, hospitalCode: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white font-mono"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">ROHINI / NABH / PMJAY ID <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">ROHINI / NABH / PMJAY ID <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={hospitalForm.rohiniId}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, rohiniId: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white font-mono"
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">City <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">City <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={hospitalForm.city}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, city: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">State <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">State <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={hospitalForm.state}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, state: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Google Maps Link / Coordinates <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Google Maps / Coordinates <span className="text-red-500">*</span></label>
                             <div className="relative">
                               <input
                                 type="text"
                                 required
                                 value={hospitalForm.coordinates}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, coordinates: e.target.value })}
-                                className="w-full px-3 py-2 pr-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                                className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                               />
-                              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600">
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600">
                                 <MapPin className="w-4 h-4" />
                               </div>
                             </div>
@@ -1878,74 +1996,74 @@ export const FacilityRegistrationPortal: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Section 2: Live Bed Capacity Matrix (Initial Sync) */}
-                      <div className="space-y-2.5">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      {/* Section 2: Live Bed Capacity Matrix */}
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Live Bed Capacity Matrix (Initial Sync)
                         </h4>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                           
                           {/* ICU Beds Card */}
-                          <div className="p-3 rounded-2xl bg-blue-50/50 border border-blue-200/80 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0">
-                              <BedDouble className="w-5 h-5" />
+                          <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#1d63ff] flex items-center justify-center shrink-0 shadow-xs">
+                              <BedDouble className="w-6 h-6" />
                             </div>
                             <div className="space-y-0.5 text-left">
-                              <div className="text-[10px] font-bold text-slate-500">ICU Beds</div>
+                              <div className="text-xs font-bold text-slate-600">ICU Beds</div>
                               <input
                                 type="number"
                                 value={hospitalForm.icuBeds}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, icuBeds: Number(e.target.value) })}
-                                className="font-black text-xl text-slate-900 w-16 bg-transparent focus:outline-none"
+                                className="font-black text-2xl text-slate-900 w-20 bg-transparent focus:outline-none"
                               />
                             </div>
                           </div>
 
                           {/* NICU Warmers Card */}
-                          <div className="p-3 rounded-2xl bg-purple-50/50 border border-purple-200/80 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-                              <Activity className="w-5 h-5" />
+                          <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 shadow-xs">
+                              <Activity className="w-6 h-6" />
                             </div>
                             <div className="space-y-0.5 text-left">
-                              <div className="text-[10px] font-bold text-slate-500">NICU Warmers</div>
+                              <div className="text-xs font-bold text-slate-600">NICU Warmers</div>
                               <input
                                 type="number"
                                 value={hospitalForm.nicuWarmers}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, nicuWarmers: Number(e.target.value) })}
-                                className="font-black text-xl text-slate-900 w-16 bg-transparent focus:outline-none"
+                                className="font-black text-2xl text-slate-900 w-20 bg-transparent focus:outline-none"
                               />
                             </div>
                           </div>
 
                           {/* ER Trauma Bays Card */}
-                          <div className="p-3 rounded-2xl bg-rose-50/50 border border-rose-200/80 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                              <Shield className="w-5 h-5" />
+                          <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+                              <Shield className="w-6 h-6" />
                             </div>
                             <div className="space-y-0.5 text-left">
-                              <div className="text-[10px] font-bold text-slate-500">ER Trauma Bays</div>
+                              <div className="text-xs font-bold text-slate-600">ER Trauma Bays</div>
                               <input
                                 type="number"
                                 value={hospitalForm.erTraumaBays}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, erTraumaBays: Number(e.target.value) })}
-                                className="font-black text-xl text-rose-600 w-16 bg-transparent focus:outline-none"
+                                className="font-black text-2xl text-rose-600 w-20 bg-transparent focus:outline-none"
                               />
                             </div>
                           </div>
 
                           {/* Ventilators Card */}
-                          <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                              <Zap className="w-5 h-5" />
+                          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+                              <Zap className="w-6 h-6" />
                             </div>
                             <div className="space-y-0.5 text-left">
-                              <div className="text-[10px] font-bold text-slate-500">Ventilators</div>
+                              <div className="text-xs font-bold text-slate-600">Ventilators</div>
                               <input
                                 type="number"
                                 value={hospitalForm.ventilators}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, ventilators: Number(e.target.value) })}
-                                className="font-black text-xl text-emerald-600 w-16 bg-transparent focus:outline-none"
+                                className="font-black text-2xl text-emerald-600 w-20 bg-transparent focus:outline-none"
                               />
                             </div>
                           </div>
@@ -1954,48 +2072,48 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       </div>
 
                       {/* Section 3: Advanced Facilities */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Advanced Facilities (Select All That Apply)
                         </h4>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={hospitalForm.hasCathLab}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, hasCathLab: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Cath Lab (Cardiac)</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={hospitalForm.hasTraumaOT}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, hasTraumaOT: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Trauma Emergency OT</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={hospitalForm.hasBloodBankAttached}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, hasBloodBankAttached: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Blood Bank Attached</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={hospitalForm.has24x7CT}
                               onChange={(e) => setHospitalForm({ ...hospitalForm, has24x7CT: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
                             />
                             <span>24x7 CT / MRI Scanner</span>
                           </label>
@@ -2003,40 +2121,40 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       </div>
 
                       {/* Section 4: Nodal Officer Contact */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Nodal Officer Contact (Emergency Desk)
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Emergency Desk Phone <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Emergency Desk Phone <span className="text-red-500">*</span></label>
                             <div className="relative">
                               <input
                                 type="text"
                                 required
                                 value={hospitalForm.emergencyPhone}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, emergencyPhone: e.target.value })}
-                                className="w-full px-3 py-2 pl-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                                className="w-full px-4 py-3 pl-10 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                               />
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Phone className="w-3.5 h-3.5" />
+                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                                <Phone className="w-4 h-4" />
                               </div>
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Official Email ID <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Official Email ID <span className="text-red-500">*</span></label>
                             <div className="relative">
                               <input
                                 type="email"
                                 required
                                 value={hospitalForm.officialEmail}
                                 onChange={(e) => setHospitalForm({ ...hospitalForm, officialEmail: e.target.value })}
-                                className="w-full px-3 py-2 pl-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                                className="w-full px-4 py-3 pl-10 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-600 bg-white"
                               />
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Mail className="w-3.5 h-3.5" />
+                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                                <Mail className="w-4 h-4" />
                               </div>
                             </div>
                           </div>
@@ -2047,182 +2165,182 @@ export const FacilityRegistrationPortal: React.FC = () => {
                   )}
 
                   {/* ========================================================================= */}
-                  {/* VIEW 2: BLOOD BANK REGISTRATION FORM (TOP-RIGHT SCREENSHOT) */}
+                  {/* VIEW 2: BLOOD BANK REGISTRATION FORM */}
                   {/* ========================================================================= */}
                   {activeFacilityType === 'blood_bank' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div className="space-y-6 animate-in fade-in">
                       
                       {/* Section 1: Blood Bank Details */}
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                          Blood Bank Details
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
+                          Blood Bank Center Details
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Blood Bank Name <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Blood Bank Name <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={bloodBankForm.bloodBankName}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, bloodBankName: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-red-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-600 bg-white"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">State License / Drug Inspector Approval ID <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">State License / Drug Inspector Approval ID <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={bloodBankForm.licenseId}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, licenseId: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-red-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-600 bg-white font-mono"
                             />
                           </div>
                         </div>
                       </div>
 
                       {/* Section 2: Initial Stock Matrix (Live Inventory) */}
-                      <div className="space-y-2.5">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                          Initial Stock Matrix (Live Inventory)
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
+                          Initial Stock Matrix (Live Inventory Sync)
                         </h4>
 
-                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                           
                           {/* A+ */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">A+</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">A+</span>
                             <input
                               type="number"
                               value={bloodBankForm.aPos}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, aPos: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* A- */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">A-</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">A-</span>
                             <input
                               type="number"
                               value={bloodBankForm.aNeg}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, aNeg: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* B+ */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">B+</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">B+</span>
                             <input
                               type="number"
                               value={bloodBankForm.bPos}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, bPos: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* B- */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">B-</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">B-</span>
                             <input
                               type="number"
                               value={bloodBankForm.bNeg}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, bNeg: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* O+ */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">O+</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">O+</span>
                             <input
                               type="number"
                               value={bloodBankForm.oPos}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, oPos: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* O- */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">O-</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">O-</span>
                             <input
                               type="number"
                               value={bloodBankForm.oNeg}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, oNeg: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* AB+ */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">AB+</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">AB+</span>
                             <input
                               type="number"
                               value={bloodBankForm.abPos}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, abPos: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                           {/* AB- */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-0.5">
-                            <span className="text-[11px] font-black text-slate-700">AB-</span>
+                          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1 shadow-xs">
+                            <span className="text-xs font-black text-slate-800">AB-</span>
                             <input
                               type="number"
                               value={bloodBankForm.abNeg}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, abNeg: Number(e.target.value) })}
-                              className="w-full text-center font-black text-base text-slate-900 focus:outline-none bg-transparent"
+                              className="w-full text-center font-black text-xl text-slate-900 focus:outline-none bg-transparent"
                             />
-                            <div className="text-[9px] text-slate-400">Units</div>
+                            <div className="text-[10px] text-slate-500 font-medium">Units</div>
                           </div>
 
                         </div>
                       </div>
 
                       {/* Section 3: Special Components Available */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Special Components Available
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={bloodBankForm.hasSDP}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, hasSDP: e.target.checked })}
-                              className="rounded text-red-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-red-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Single Donor Platelets (SDP)</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={bloodBankForm.hasFFP}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, hasFFP: e.target.checked })}
-                              className="rounded text-red-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-red-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Fresh Frozen Plasma (FFP)</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={bloodBankForm.hasCryo}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, hasCryo: e.target.checked })}
-                              className="rounded text-red-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-red-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Cryoprecipitate</span>
                           </label>
@@ -2230,36 +2348,36 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       </div>
 
                       {/* Section 4: 24x7 Helplines & Refrigeration Status */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           24x7 Helplines &amp; Refrigeration Status
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">24x7 Helpline Number <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">24x7 Helpline Number <span className="text-red-500">*</span></label>
                             <div className="relative">
                               <input
                                 type="text"
                                 required
                                 value={bloodBankForm.helplinePhone}
                                 onChange={(e) => setBloodBankForm({ ...bloodBankForm, helplinePhone: e.target.value })}
-                                className="w-full px-3 py-2 pl-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-red-500 bg-white"
+                                className="w-full px-4 py-3 pl-10 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-600 bg-white"
                               />
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <Phone className="w-3.5 h-3.5" />
+                              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                                <Phone className="w-4 h-4" />
                               </div>
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Cold Chain Backup Status <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Cold Chain Backup Status <span className="text-red-500">*</span></label>
                             <select
                               value={bloodBankForm.coldChainStatus}
                               onChange={(e) => setBloodBankForm({ ...bloodBankForm, coldChainStatus: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-red-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-600 bg-white"
                             >
-                              <option>● Fully Operational</option>
+                              <option>● Fully Operational (Primary + Backup)</option>
                               <option>● Dual Generator Backup</option>
                               <option>● Solar Inverter Hybrid</option>
                             </select>
@@ -2271,71 +2389,75 @@ export const FacilityRegistrationPortal: React.FC = () => {
                   )}
 
                   {/* ========================================================================= */}
-                  {/* VIEW 3: AMBULANCE FLEET REGISTRATION FORM (BOTTOM-LEFT SCREENSHOT) */}
+                  {/* VIEW 3: AMBULANCE FLEET REGISTRATION FORM */}
                   {/* ========================================================================= */}
                   {activeFacilityType === 'ambulance' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div className="space-y-6 animate-in fade-in">
                       
                       {/* Section 1: Fleet Operator Details */}
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Fleet Operator / Hospital Name <span className="text-red-500">*</span></label>
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
+                          EMS Fleet Operator Details
+                        </h4>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Fleet Operator / Hospital Name <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={ambulanceForm.fleetName}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, fleetName: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 bg-white"
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-600">Operator ID / Registration No. <span className="text-red-500">*</span></label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700">Operator ID / Registration No. <span className="text-red-500">*</span></label>
                             <input
                               type="text"
                               required
                               value={ambulanceForm.operatorId}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, operatorId: e.target.value })}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 bg-white font-mono"
                             />
                           </div>
                         </div>
                       </div>
 
                       {/* Section 2: Vehicle Type */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Vehicle Type (Select Applicable)
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <label className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={ambulanceForm.hasALS}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, hasALS: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Advanced Life Support (ALS) with Ventilator</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={ambulanceForm.hasBLS}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, hasBLS: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Basic Life Support (BLS)</span>
                           </label>
 
-                          <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <label className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
                             <input
                               type="checkbox"
                               checked={ambulanceForm.hasMortuary}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, hasMortuary: e.target.checked })}
-                              className="rounded text-blue-600 focus:ring-0"
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                             />
                             <span>Mortuary / Transport Van</span>
                           </label>
@@ -2343,51 +2465,51 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       </div>
 
                       {/* Section 3: Total Ambulances Connected to Grid */}
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-600">Total Ambulances Connected to Grid <span className="text-red-500">*</span></label>
-                        <div className="flex items-center gap-2 max-w-[200px]">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">Total Ambulances Connected to Grid <span className="text-red-500">*</span></label>
+                        <div className="flex items-center gap-3 max-w-[240px]">
                           <input
                             type="number"
                             required
                             value={ambulanceForm.totalAmbulances}
                             onChange={(e) => setAmbulanceForm({ ...ambulanceForm, totalAmbulances: Number(e.target.value) })}
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-500 bg-white"
+                            className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-black text-slate-900 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 bg-white"
                           />
-                          <span className="text-xs text-slate-500 font-semibold">Vehicles</span>
+                          <span className="text-xs sm:text-sm text-slate-600 font-bold">Vehicles</span>
                         </div>
                       </div>
 
                       {/* Section 4: Driver / Paramedic GPS Device Sync */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      <div className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
                           Driver / Paramedic GPS Device Sync
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="p-3 rounded-2xl border border-blue-200 bg-blue-50/40 space-y-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-slate-700">Sync Device Via *</span>
-                              <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                              <span className="text-xs font-bold text-slate-800">Sync Device Via *</span>
+                              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
                                 ✓ Recommended
                               </span>
                             </div>
                             <select
                               value={ambulanceForm.syncDevice}
                               onChange={(e) => setAmbulanceForm({ ...ambulanceForm, syncDevice: e.target.value })}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-900 bg-white"
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-bold text-slate-900 bg-white focus:outline-none"
                             >
                               <option>Mobile App (Prathmikta Connect)</option>
                               <option>AIS-140 Certified Hardware Tracker</option>
                             </select>
                           </div>
 
-                          <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-slate-900 text-slate-100 flex items-center justify-center shrink-0">
-                              <Cpu className="w-5 h-5" />
+                          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-slate-100 flex items-center justify-center shrink-0 shadow-xs">
+                              <Cpu className="w-6 h-6" />
                             </div>
                             <div className="space-y-0.5 text-left">
-                              <div className="text-[9px] font-bold text-slate-400 uppercase">Other Option</div>
-                              <div className="text-xs font-bold text-slate-800">OBD-II GPS Tracker</div>
+                              <div className="text-[10px] font-bold text-slate-500 uppercase">Hardware Support</div>
+                              <div className="text-xs sm:text-sm font-black text-slate-800">OBD-II &amp; AIS-140 GPS Tracker</div>
                             </div>
                           </div>
                         </div>
@@ -2396,18 +2518,18 @@ export const FacilityRegistrationPortal: React.FC = () => {
                     </div>
                   )}
 
-                  {/* FORM BOTTOM BAR (EXACT AS SCREENSHOT) */}
-                  <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>All data is encrypted and secure under ABDM Guidelines.</span>
+                  {/* FORM BOTTOM BAR */}
+                  <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                      <Lock className="w-4 h-4 text-emerald-600" />
+                      <span>Encrypted under ABDM Guidelines. Persisted in Central Database.</span>
                     </div>
 
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                       <button
                         type="button"
                         onClick={() => setIsModalOpen(false)}
-                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        className="px-5 py-3 rounded-xl border-2 border-slate-300 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-100 cursor-pointer transition-all"
                       >
                         Cancel
                       </button>
@@ -2415,20 +2537,22 @@ export const FacilityRegistrationPortal: React.FC = () => {
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className={`px-5 py-2 rounded-xl text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50 ${
+                        className={`px-7 py-3.5 rounded-xl text-white font-black text-xs sm:text-sm md:text-base flex items-center gap-2.5 shadow-lg cursor-pointer transition-all active:scale-95 disabled:opacity-50 ${
                           activeFacilityType === 'blood_bank'
                             ? 'bg-[#c9182b] hover:bg-red-700 shadow-red-500/20'
+                            : activeFacilityType === 'ambulance'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
                             : 'bg-[#1d63ff] hover:bg-blue-700 shadow-blue-500/20'
                         }`}
                       >
                         {isSubmitting ? (
                           <>
-                            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
-                            <span>Verifying Credentials...</span>
+                            <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
+                            <span>Saving &amp; Verifying In Database...</span>
                           </>
                         ) : (
                           <>
-                            <span>Next: Live Matrix &amp; Capabilities</span>
+                            <span>Complete Registration &amp; Sync Matrix</span>
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}

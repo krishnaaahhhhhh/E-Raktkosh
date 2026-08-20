@@ -47,25 +47,25 @@ export const HeaderNav: React.FC = () => {
       id="main-app-navbar"
       className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 select-none text-slate-800 shadow-xs"
     >
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-        {/* Left: Brand Identity & Animated Real-Time Heartbeat Logo */}
+      <div className="w-full px-2 sm:px-3 lg:px-4 py-2.5 flex items-center justify-between">
+        {/* Left: Brand Identity & Animated Real-Time Heartbeat Logo (Flush to extreme left, zero gap) */}
         <div
           onClick={() => handleNavClick('landing-hero', 'home')}
-          className="cursor-pointer group flex items-center"
+          className="cursor-pointer group flex items-center pl-0"
           title="Prathmikta Emergency Grid"
         >
-          <AnimatedHeartbeatLogo size="md" showBadge={true} showWaveformStrip={true} />
+          <AnimatedHeartbeatLogo size="md" />
         </div>
 
-        {/* Right: 4 Clean Navigation Links Matching User Screenshot (Home, About, Services, Contact Us) */}
-        <nav className="hidden md:flex items-center gap-8 lg:gap-10 text-sm font-semibold text-slate-600">
+        {/* Right: 4 Navigation Cards (Home, About, Services, Contact Us) flush to extreme right with zero gap */}
+        <nav className="hidden md:flex items-center gap-2 sm:gap-3 text-sm font-semibold text-slate-600 pr-0">
           <button
             id="nav-link-home"
             onClick={() => handleNavClick('landing-hero', 'home')}
-            className={`pb-1 transition-colors cursor-pointer text-sm font-bold tracking-tight ${
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs sm:text-sm font-bold tracking-tight ${
               activeNav === 'home'
-                ? 'text-red-600 font-bold border-b-2 border-red-600'
-                : 'hover:text-red-600'
+                ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs'
+                : 'text-slate-700 hover:text-red-600 hover:bg-slate-50'
             }`}
           >
             Home
@@ -74,10 +74,10 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-about"
             onClick={() => handleNavClick('why-prathmikta', 'about')}
-            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs sm:text-sm font-semibold tracking-tight ${
               activeNav === 'about'
-                ? 'text-red-600 font-bold border-b-2 border-red-600'
-                : 'hover:text-red-600'
+                ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs'
+                : 'text-slate-700 hover:text-red-600 hover:bg-slate-50'
             }`}
           >
             About
@@ -86,10 +86,10 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-services"
             onClick={() => handleNavClick('what-we-offer', 'services')}
-            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs sm:text-sm font-semibold tracking-tight ${
               activeNav === 'services'
-                ? 'text-red-600 font-bold border-b-2 border-red-600'
-                : 'hover:text-red-600'
+                ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs'
+                : 'text-slate-700 hover:text-red-600 hover:bg-slate-50'
             }`}
           >
             Services
@@ -98,10 +98,10 @@ export const HeaderNav: React.FC = () => {
           <button
             id="nav-link-contact"
             onClick={() => handleNavClick('bottom-call-to-action', 'contact')}
-            className={`pb-1 transition-colors cursor-pointer text-sm font-semibold tracking-tight ${
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer text-xs sm:text-sm font-semibold tracking-tight ${
               activeNav === 'contact'
-                ? 'text-red-600 font-bold border-b-2 border-red-600'
-                : 'hover:text-red-600'
+                ? 'bg-red-50 text-red-600 border border-red-200 shadow-2xs'
+                : 'text-slate-700 hover:text-red-600 hover:bg-slate-50'
             }`}
           >
             Contact Us

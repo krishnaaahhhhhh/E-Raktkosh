@@ -21,7 +21,8 @@ import {
   Send,
   Radio,
   Check,
-  ArrowUpRight
+  ArrowUpRight,
+  Wind
 } from 'lucide-react';
 import { RealHospital } from '../../services/hospitalService';
 import { usePrathmikta } from '../../context/PrathmiktaContext';
@@ -313,77 +314,225 @@ export const PatientReportModal: React.FC<PatientReportModalProps> = ({
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-blue-600" />
-                <span>Extracted Golden Hour Vitals</span>
+                <span>Synchronized Golden Hour Vitals &amp; Hemodynamics</span>
               </h3>
               <span className="text-[10px] text-slate-400 font-medium">BLE / Sensor Synchronized</span>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-2xl bg-blue-50/60 border border-blue-200 text-center">
-                <div className="text-[10px] font-bold text-blue-600 uppercase">SpO2 (Oxygen)</div>
-                <div className="text-2xl font-black text-blue-700">
+              {/* Blood Pressure (BP) */}
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center">
+                <div className="text-[10px] font-bold text-emerald-700 uppercase flex items-center justify-center gap-1">
+                  <Activity className="w-3 h-3 text-emerald-600" />
+                  <span>Blood Pressure</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-900 mt-0.5">
+                  {report.vitals.bp} <span className="text-[10px] font-bold text-emerald-700">mmHg</span>
+                </div>
+                <div className="text-[10px] font-semibold text-emerald-700 mt-0.5">
+                  {parseInt(report.vitals.bp) >= 160
+                    ? '⚠️ Stage 2 High BP'
+                    : parseInt(report.vitals.bp) <= 95
+                    ? '⚠️ Hypotensive / Low'
+                    : 'Target Perfusion'}
+                </div>
+              </div>
+
+              {/* SpO2 (Oxygen) */}
+              <div className="p-3 rounded-2xl bg-blue-50/70 border border-blue-200 text-center">
+                <div className="text-[10px] font-bold text-blue-700 uppercase flex items-center justify-center gap-1">
+                  <Wind className="w-3 h-3 text-blue-600" />
+                  <span>SpO2 Oxygen</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-blue-900 mt-0.5">
                   {report.vitals.spo2}%
                 </div>
-                <div className="text-[10px] font-semibold text-slate-500">
-                  {report.vitals.spo2 >= 95 ? 'Normal' : 'Critical (Hypoxia Risk)'}
+                <div className="text-[10px] font-semibold text-blue-700 mt-0.5">
+                  {report.vitals.spo2 >= 95 ? 'Normal Saturation' : 'Critical (Hypoxia Risk)'}
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-red-50/60 border border-red-200 text-center">
-                <div className="text-[10px] font-bold text-red-600 uppercase">Heart Pulse</div>
-                <div className="text-2xl font-black text-red-700">
-                  {report.vitals.pulse} <span className="text-xs font-bold">bpm</span>
+              {/* Heart Pulse */}
+              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200 text-center">
+                <div className="text-[10px] font-bold text-rose-700 uppercase flex items-center justify-center gap-1">
+                  <Heart className="w-3 h-3 text-rose-600" />
+                  <span>Heart Pulse</span>
                 </div>
-                <div className="text-[10px] font-semibold text-slate-500">
-                  {report.vitals.pulse > 100 ? 'Tachycardia' : 'Stable Rate'}
+                <div className="text-xl sm:text-2xl font-black text-rose-900 mt-0.5">
+                  {report.vitals.pulse} <span className="text-[10px] font-bold text-rose-700">bpm</span>
                 </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200 text-center">
-                <div className="text-[10px] font-bold text-emerald-600 uppercase">Blood Pressure</div>
-                <div className="text-xl sm:text-2xl font-black text-emerald-700">
-                  {report.vitals.bp} <span className="text-[10px] font-bold">mmHg</span>
+                <div className="text-[10px] font-semibold text-rose-700 mt-0.5">
+                  {report.vitals.pulse > 100 ? 'Tachycardia Alert' : 'Normal Sinus Rhythm'}
                 </div>
-                <div className="text-[10px] font-semibold text-slate-500">Paramedic Synced</div>
               </div>
             </div>
           </div>
 
-          {/* Section 3: Clinical Risk Profile & Red Flags */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                <Shield className="w-3.5 h-3.5 text-red-500" />
-                <span>Medical Red Flags &amp; Comorbidities</span>
+          {/* Section 3: Critical Medical History & Red Flags (Blood Thinning, BP, Diabetes, etc.) */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-red-500" />
+                <span>Clinical History &amp; Medication Red Flags</span>
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                ER Screening Protocol
+              </span>
+            </div>
+
+            {/* Structured History Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              
+              {/* 1. Blood Thinners (Anticoagulant) */}
+              <div className={`p-3 rounded-xl border flex items-start justify-between gap-2 ${
+                report.medicalRedFlags.some(f => f.toLowerCase().includes('thinner') || f.toLowerCase().includes('anticoagulant') || f.toLowerCase().includes('aspirin') || f.toLowerCase().includes('clopidogrel'))
+                  ? 'bg-rose-50 border-rose-300 text-rose-950'
+                  : 'bg-white border-slate-200 text-slate-700'
+              }`}>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Blood Thinners / Anticoagulants
+                  </div>
+                  <div className="text-xs font-black mt-0.5">
+                    {report.medicalRedFlags.some(f => f.toLowerCase().includes('thinner') || f.toLowerCase().includes('anticoagulant') || f.toLowerCase().includes('aspirin') || f.toLowerCase().includes('clopidogrel'))
+                      ? '⚠️ POSITIVE: On Blood Thinners'
+                      : '✓ NEGATIVE / None Reported'}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {report.medicalRedFlags.some(f => f.toLowerCase().includes('thinner') || f.toLowerCase().includes('anticoagulant') || f.toLowerCase().includes('aspirin') || f.toLowerCase().includes('clopidogrel'))
+                      ? 'High risk of hemorrhage; notify surgery/trauma team'
+                      : 'Standard surgical coagulation profile'}
+                  </p>
+                </div>
+                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                  report.medicalRedFlags.some(f => f.toLowerCase().includes('thinner') || f.toLowerCase().includes('anticoagulant') || f.toLowerCase().includes('aspirin') || f.toLowerCase().includes('clopidogrel'))
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {report.medicalRedFlags.some(f => f.toLowerCase().includes('thinner') || f.toLowerCase().includes('anticoagulant') || f.toLowerCase().includes('aspirin') || f.toLowerCase().includes('clopidogrel'))
+                    ? 'ALERT'
+                    : 'CLEAR'}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {report.medicalRedFlags.length > 0 ? (
-                  report.medicalRedFlags.map((flag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs font-bold"
-                    >
-                      {flag}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-slate-500 font-medium">No major red flags reported</span>
-                )}
+
+              {/* 2. Hypertension (Blood Pressure History) */}
+              <div className={`p-3 rounded-xl border flex items-start justify-between gap-2 ${
+                report.medicalRedFlags.some(f => f.toLowerCase().includes('hypertension') || f.toLowerCase().includes('bp'))
+                  ? 'bg-amber-50 border-amber-300 text-amber-950'
+                  : 'bg-white border-slate-200 text-slate-700'
+              }`}>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Hypertension (High BP History)
+                  </div>
+                  <div className="text-xs font-black mt-0.5">
+                    {report.medicalRedFlags.some(f => f.toLowerCase().includes('hypertension') || f.toLowerCase().includes('bp'))
+                      ? `⚠️ POSITIVE: Known Chronic HTN`
+                      : '✓ NEGATIVE / Controlled'}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Recorded BP: <span className="font-bold text-slate-800">{report.vitals.bp} mmHg</span>
+                  </p>
+                </div>
+                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                  report.medicalRedFlags.some(f => f.toLowerCase().includes('hypertension') || f.toLowerCase().includes('bp'))
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {report.medicalRedFlags.some(f => f.toLowerCase().includes('hypertension') || f.toLowerCase().includes('bp'))
+                    ? 'NOTED'
+                    : 'CLEAR'}
+                </div>
+              </div>
+
+              {/* 3. Diabetes Mellitus */}
+              <div className={`p-3 rounded-xl border flex items-start justify-between gap-2 ${
+                report.medicalRedFlags.some(f => f.toLowerCase().includes('diabetes') || f.toLowerCase().includes('sugar'))
+                  ? 'bg-amber-50 border-amber-300 text-amber-950'
+                  : 'bg-white border-slate-200 text-slate-700'
+              }`}>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Diabetes Mellitus
+                  </div>
+                  <div className="text-xs font-black mt-0.5">
+                    {report.medicalRedFlags.some(f => f.toLowerCase().includes('diabetes') || f.toLowerCase().includes('sugar'))
+                      ? '⚠️ POSITIVE: Diabetic Protocol Active'
+                      : '✓ NEGATIVE / Non-Diabetic'}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Check blood glucose upon ER bay arrival
+                  </p>
+                </div>
+                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                  report.medicalRedFlags.some(f => f.toLowerCase().includes('diabetes') || f.toLowerCase().includes('sugar'))
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {report.medicalRedFlags.some(f => f.toLowerCase().includes('diabetes') || f.toLowerCase().includes('sugar'))
+                    ? 'NOTED'
+                    : 'CLEAR'}
+                </div>
+              </div>
+
+              {/* 4. Cardiovascular / Prior Cardiac Event */}
+              <div className={`p-3 rounded-xl border flex items-start justify-between gap-2 ${
+                report.medicalRedFlags.some(f => f.toLowerCase().includes('heart') || f.toLowerCase().includes('cardiac') || f.toLowerCase().includes('stent') || f.toLowerCase().includes('bypass'))
+                  ? 'bg-rose-50 border-rose-300 text-rose-950'
+                  : 'bg-white border-slate-200 text-slate-700'
+              }`}>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Cardiovascular / Stents / Surgery
+                  </div>
+                  <div className="text-xs font-black mt-0.5">
+                    {report.medicalRedFlags.some(f => f.toLowerCase().includes('heart') || f.toLowerCase().includes('cardiac') || f.toLowerCase().includes('stent') || f.toLowerCase().includes('bypass'))
+                      ? '⚠️ POSITIVE: Prior Cardiac Disease'
+                      : '✓ NEGATIVE / No Prior Cardiac History'}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Cath-Lab readiness fast-track protocol
+                  </p>
+                </div>
+                <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                  report.medicalRedFlags.some(f => f.toLowerCase().includes('heart') || f.toLowerCase().includes('cardiac') || f.toLowerCase().includes('stent') || f.toLowerCase().includes('bypass'))
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {report.medicalRedFlags.some(f => f.toLowerCase().includes('heart') || f.toLowerCase().includes('cardiac') || f.toLowerCase().includes('stent') || f.toLowerCase().includes('bypass'))
+                    ? 'ALERT'
+                    : 'CLEAR'}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Consciousness & Additional Red Flags Chips */}
+            <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-500 text-[11px]">Consciousness:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                  report.consciousness === 'Unconscious'
+                    ? 'bg-rose-600 text-white'
+                    : report.consciousness === 'Drowsy'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-emerald-600 text-white'
+                }`}>
+                  {report.consciousness}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-500 text-[11px]">Onset Duration:</span>
+                <span className="font-black text-blue-600">{report.symptomDuration}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-500 text-[11px]">Allergies:</span>
+                <span className="font-black text-amber-700">{report.allergies || 'None (NKDA)'}</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                <Clock className="w-3.5 h-3.5 text-blue-500" />
-                <span>Duration &amp; Known Allergies</span>
-              </div>
-              <div className="text-xs font-bold text-slate-800 pt-1">
-                Onset: <span className="text-blue-600 font-black">{report.symptomDuration}</span> • Allergies: <span className="text-amber-600 font-black">{report.allergies || 'None'}</span>
-              </div>
-              <div className="text-[11px] text-slate-500">
-                Consciousness: <span className="font-bold text-slate-800">{report.consciousness}</span>
-              </div>
-            </div>
           </div>
 
           {/* Destination Hospital & Geolocation Routing */}

@@ -853,9 +853,24 @@ export const PrathmiktaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const emitPartnerFacilityRegister = async (facilityData: any) => {
+    // 1. Optimistic state update in context
+    setLiveFacilities(prev => {
+      const filtered = prev.filter(f => f.facilityId !== facilityData.facilityId);
+      const updated = [facilityData, ...filtered];
+      try {
+        localStorage.setItem('prathmikta_live_facilities_cache', JSON.stringify(updated.slice(0, 100)));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    // 2. Broadcast via Socket.IO
     if (socketRef.current && isConnected) {
       socketRef.current.emit('facility:register', facilityData);
     }
+
+    // 3. Post to REST API Endpoint
     try {
       await fetch('/api/partner/register', {
         method: 'POST',

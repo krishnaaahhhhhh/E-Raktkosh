@@ -49,6 +49,7 @@ import {
 } from '../../services/hospitalService';
 import { RealLeafletHospitalMap } from '../map/RealLeafletHospitalMap';
 import { PatientReportModal, PatientEmergencyReportData } from './PatientReportModal';
+import { InteractiveAiStepTriage, StepTriageData } from './InteractiveAiStepTriage';
 
 // Diverse randomized emergency clinical scenarios generated dynamically on each page load/refresh
 const DYNAMIC_REFRESH_SCENARIOS = [
@@ -523,8 +524,8 @@ export const CitizenEmergencyApp: React.FC = () => {
       : 'YELLOW (Urgent)';
 
     const clinicalSummary = isVoice
-      ? `AI Voice Assessment extracted acute ${detectedData.category} distress with consciousness level '${detectedData.consciousness}'. Extracted vital signs indicate ${detectedData.vitals} with background risk factors (${detectedData.redFlags}). Immediate ER triage bay reservation recommended.`
-      : `Pre-arrival triage intake indicates patient presenting with ${emergencyCategoryName} of duration ${symptomTime}. Baseline consciousness is '${consciousness}'. Known allergies: ${allergy}. Medical history positive for: ${activeRedFlags.join(', ') || 'None'}.`;
+      ? `AI Voice Assessment extracted acute ${detectedData.category} presentation with consciousness level '${detectedData.consciousness}'. Extracted vital signs indicate BP ${vitals.bp} mmHg, Pulse ${vitals.pulse} bpm, SpO2 ${vitals.spo2}%. Critical medical history: ${activeRedFlags.length > 0 ? activeRedFlags.join(', ') : detectedData.redFlags || 'No major chronic conditions reported'}. Immediate ER triage reservation confirmed.`
+      : `Pre-arrival triage intake indicates patient presenting with ${emergencyCategoryName} of duration ${symptomTime}. Baseline consciousness: '${consciousness}'. Synchronized vitals: Blood Pressure ${vitals.bp} mmHg, Heart Rate ${vitals.pulse} bpm, SpO2 ${vitals.spo2}%. Medical history positive for: ${activeRedFlags.length > 0 ? activeRedFlags.join(', ') : 'None reported'}. Known allergies: ${allergy || 'NKDA'}.`;
 
     const aiSuggestedActions = [
       'Keep patient in semi-fowler / resting position; avoid physical strain.',
@@ -1029,226 +1030,47 @@ export const CitizenEmergencyApp: React.FC = () => {
             </div>
 
             {/* ===================================================================== */}
-            {/* CONDITIONAL RENDERING: AI VOICE AGENT MODE vs MANUAL FORM */}
+            {/* CONDITIONAL RENDERING: AI QUESTION-BY-QUESTION TRIAGE vs MANUAL FORM */}
             {/* ===================================================================== */}
             {inputMode === 'voice' ? (
-              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-6 text-left animate-in fade-in duration-200">
-                
-                {/* 1. Sound Waveform Equalizer Visualizer */}
-                <div className="w-full flex items-center justify-center gap-[3px] py-3 px-2 overflow-hidden h-14 select-none">
-                  {[
-                    18, 24, 12, 35, 48, 60, 32, 70, 85, 45, 95, 65, 40, 80, 55, 90, 75, 100, 80, 60,
-                    90, 100, 70, 85, 50, 92, 68, 45, 80, 60, 95, 75, 40, 65, 88, 50, 72, 35, 60, 42,
-                    28, 16, 22, 14, 18, 10
-                  ].map((height, idx) => (
-                    <div
-                      key={idx}
-                      className={`w-1 rounded-full transition-all duration-200 ${
-                        isListening
-                          ? 'bg-gradient-to-t from-blue-600 via-indigo-500 to-blue-400 animate-pulse'
-                          : 'bg-blue-300/80'
-                      }`}
-                      style={{
-                        height: isListening
-                          ? `${Math.max(12, (height * (0.6 + Math.sin(idx + Date.now() / 300) * 0.4)) * 0.45)}px`
-                          : `${height * 0.28}px`,
-                        animationDelay: `${idx * 40}ms`
-                      }}
-                    />
-                  ))}
-                </div>
-
-                {/* 2. Glowing Big Circular Mic Button with Listening status */}
-                <div className="flex flex-col items-center justify-center text-center space-y-2 py-1">
-                  <div className="relative">
-                    {/* Glowing pulse rings when listening */}
-                    {isListening && (
-                      <>
-                        <div className="absolute -inset-2.5 rounded-full bg-blue-500/20 animate-ping" />
-                        <div className="absolute -inset-5 rounded-full bg-indigo-500/10 animate-pulse" />
-                      </>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={handleToggleVoiceListening}
-                      className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all cursor-pointer ${
-                        isListening
-                          ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-blue-500/40 ring-4 ring-blue-400/30'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-slate-300'
-                      }`}
-                      title={isListening ? 'Tap to pause microphone' : 'Tap to speak emergency'}
-                    >
-                      {isListening ? (
-                        <Mic className="w-8 h-8 text-white animate-bounce" />
-                      ) : (
-                        <MicOff className="w-8 h-8 text-slate-600" />
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="pt-2">
-                    <h3 className="text-base font-black text-blue-600 leading-tight">
-                      {isListening ? 'Listening...' : 'Tap Mic to Start Speaking'}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium pt-0.5">
-                      Speak your emergency details in Hindi or English.
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3. Detected Details Cards Grid (2 cols) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
-                  {/* Card 1: Live Transcript */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1 sm:col-span-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                        <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Live Transcript</span>
-                      </div>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-700 font-medium italic line-clamp-2 leading-relaxed pt-1">
-                      {voiceTranscript}
-                    </p>
-                  </div>
-
-                  {/* Card 2: Category (Detected) */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1 sm:col-span-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                      <Activity className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Category (Detected)</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-900 pt-1">
-                      {detectedData.category}
-                    </div>
-                  </div>
-
-                  {/* Card 3: Consciousness (Detected) */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                      <Brain className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Consciousness (Detected)</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-900 pt-1">
-                      {detectedData.consciousness}
-                    </div>
-                  </div>
-
-                  {/* Card 4: Patient Age (Detected) */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                      <User className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Patient Age (Detected)</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-900 pt-1">
-                      {detectedData.age}
-                    </div>
-                  </div>
-
-                  {/* Card 5: Medical Red Flags */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                      <Shield className="w-3.5 h-3.5 text-red-500" />
-                      <span>Medical Red Flags</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-900 pt-1">
-                      {detectedData.redFlags}
-                    </div>
-                  </div>
-
-                  {/* Card 6: Vitals (Extracted) */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-                      <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" />
-                      <span>Vitals (Extracted)</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-900 pt-1">
-                      {detectedData.vitals}
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* 4. Green Success Banner: Report Generated Successfully */}
-                <div className="p-4 rounded-2xl bg-[#ecfdf5] border border-emerald-200/90 shadow-sm flex items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                      <Check className="w-4 h-4 stroke-[3]" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-black text-emerald-900 leading-tight">
-                        Report Generated Successfully
-                      </h4>
-                      <p className="text-[11px] sm:text-xs text-emerald-700 font-medium pt-0.5">
-                        AI has auto-filled all critical details. You can review before dispatch.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="w-5 h-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin shrink-0 hidden sm:block" />
-                </div>
-
-                {/* 5. Bottom Action Buttons: Submit & Generate AI Report + Reset + QR Token */}
-                <div className="space-y-3 pt-2">
-                  {/* Primary Submit Button */}
-                  <button
-                    type="button"
-                    onClick={handleSubmitAndGenerateAiReport}
-                    disabled={isSubmitting}
-                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-red-600/30 active:scale-95 transition-all cursor-pointer"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Generating AI Medical Report &amp; Transmitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 fill-white" />
-                        <span>Submit Intake &amp; Generate AI Report (Direct Transfer)</span>
-                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                      </>
-                    )}
-                  </button>
-
-                  {/* Secondary auxiliary buttons */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleResetVoice}
-                      className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Reset &amp; Speak Again</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleOpenReportModal}
-                      className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Preview AI Report</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleDispatchAndGenerateQr}
-                      className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>Generate QR Token</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-              </div>
+              <InteractiveAiStepTriage
+                selectedHospitalName={selectedHospital?.name || 'GSVM Medical College & Hospital'}
+                isSubmitting={isSubmitting}
+                isReportGenerated={detectedData.isReportGenerated}
+                defaultData={{
+                  category: selectedEmergency === 'chest_pain' ? 'Chest Pain / Acute Cardiac' : selectedEmergency === 'trauma' ? 'Severe Trauma / Bleeding' : selectedEmergency === 'stroke' ? 'Stroke / Paralysis' : selectedEmergency === 'breathing' ? 'Breathing / Respiratory Issue' : 'Thermal Burn Injury',
+                  categoryKey: selectedEmergency,
+                  consciousness: consciousness,
+                  patientAge: patientAge === '13–60' ? '45' : patientAge === '< 1' ? '0.8' : patientAge === '1–12' ? '8' : '68',
+                  patientAgeLabel: patientAge,
+                  redFlags: {
+                    diabetes: !!redFlags.diabetes,
+                    hypertension: !!redFlags.hypertension,
+                    bloodThinners: !!redFlags.bloodThinners,
+                    heartDisease: !!redFlags.heartDisease,
+                    pregnancy: !!redFlags.pregnancy
+                  },
+                  vitals: vitals
+                }}
+                onDataChange={(data: StepTriageData) => {
+                  setSelectedEmergency(data.categoryKey);
+                  setConsciousness(data.consciousness);
+                  setPatientAge(data.patientAgeLabel);
+                  setRedFlags(data.redFlags);
+                  setVitals(data.vitals);
+                  setDetectedData({
+                    category: data.category,
+                    consciousness: data.consciousness,
+                    age: `${data.patientAge} Yrs (${data.patientGender})`,
+                    redFlags: Object.entries(data.redFlags).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'None',
+                    vitals: `${data.vitals.bp} | ${data.vitals.spo2}% SpO2`,
+                    isReportGenerated: true
+                  });
+                }}
+                onGenerateReport={handleOpenReportModal}
+                onSubmitDispatch={handleSubmitAndGenerateAiReport}
+                onPreviewPdf={handleOpenReportModal}
+              />
             ) : (
               /* ===================================================================== */
               /* MANUAL PRE-ARRIVAL FORM & DISPATCH CARD */
@@ -1595,7 +1417,7 @@ export const CitizenEmergencyApp: React.FC = () => {
                 {qrTokenId}
               </div>
               <div className="text-xs font-bold text-slate-800">
-                Reserved at: {selectedHospital.name}
+                Reserved at: {selectedHospital?.name || 'GSVM Medical College & Hospital'}
               </div>
             </div>
 

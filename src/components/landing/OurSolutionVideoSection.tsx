@@ -16,7 +16,13 @@ import {
   ArrowRight,
   Upload,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Tv,
+  Film,
+  ExternalLink,
+  RefreshCw,
+  Sliders,
+  CheckCircle2
 } from 'lucide-react';
 import { playTactileClick } from '../../lib/audio';
 
@@ -43,7 +49,7 @@ const KEY_MOMENTS: KeyMoment[] = [
     bgLight: 'bg-amber-50 border-amber-200',
   },
   {
-    time: 6,
+    time: 4,
     label: 'In-Transit Telemetry',
     badge: 'Stage 2',
     icon: Activity,
@@ -53,7 +59,7 @@ const KEY_MOMENTS: KeyMoment[] = [
     bgLight: 'bg-blue-50 border-blue-200',
   },
   {
-    time: 14,
+    time: 8,
     label: 'Instant Cloud Grid Sync',
     badge: 'Stage 3',
     icon: Zap,
@@ -63,7 +69,7 @@ const KEY_MOMENTS: KeyMoment[] = [
     bgLight: 'bg-purple-50 border-purple-200',
   },
   {
-    time: 20,
+    time: 12,
     label: 'Hospital ER Doctor Alert',
     badge: 'Stage 4',
     icon: Building2,
@@ -73,7 +79,7 @@ const KEY_MOMENTS: KeyMoment[] = [
     bgLight: 'bg-emerald-50 border-emerald-200',
   },
   {
-    time: 25,
+    time: 15,
     label: 'Green Corridor Handover',
     badge: 'Stage 5',
     icon: ShieldCheck,
@@ -82,6 +88,25 @@ const KEY_MOMENTS: KeyMoment[] = [
     textColor: 'text-red-600',
     bgLight: 'bg-rose-50 border-rose-200',
   },
+];
+
+// High-speed, smooth, reliable video sources (MP4 with cloud CDN caching)
+const RELIABLE_VIDEO_SOURCES = [
+  {
+    title: 'Emergency Medical Transit & Corridor (HD)',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    poster: 'https://images.unsplash.com/photo-1587745416684-475553dd599c?auto=format&fit=crop&w=1200&q=80'
+  },
+  {
+    title: 'Hospital Trauma Emergency Response (HD)',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    poster: 'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=1200&q=80'
+  },
+  {
+    title: 'Paramedic Live Telemetry & Speed (HD)',
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+    poster: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80'
+  }
 ];
 
 interface OurSolutionVideoSectionProps {
@@ -94,15 +119,28 @@ export default function OurSolutionVideoSection({
   onExploreHospitals,
 }: OurSolutionVideoSectionProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Player Mode: 'direct' (HTML5 MP4) or 'embed' (YouTube)
+  const [playerMode, setPlayerMode] = useState<'direct' | 'embed'>('direct');
+  
+  // Selected Video Source (default to smooth high-bandwidth CDN video)
+  const [selectedSourceIdx, setSelectedSourceIdx] = useState(0);
+  const [videoSrc, setVideoSrc] = useState<string>(RELIABLE_VIDEO_SOURCES[0].url);
+  const [customEmbedUrl, setCustomEmbedUrl] = useState<string>('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1');
+  
+  // Playback States
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(31);
+  const [duration, setDuration] = useState(15);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [activeMomentIndex, setActiveMomentIndex] = useState(0);
-  const [videoSrc, setVideoSrc] = useState<string>('');
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [customUrlModal, setCustomUrlModal] = useState(false);
+  const [inputUrl, setInputUrl] = useState('');
 
   // Synchronize current active moment based on currentTime
   useEffect(() => {
@@ -115,6 +153,7 @@ export default function OurSolutionVideoSection({
     setActiveMomentIndex(index);
   }, [currentTime]);
 
+  // Handle Play/Pause
   const togglePlay = () => {
     playTactileClick();
     if (!videoRef.current) return;
@@ -122,8 +161,18 @@ export default function OurSolutionVideoSection({
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
-      videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
+      setIsBuffering(true);
+      videoRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          setIsBuffering(false);
+          setHasError(false);
+        })
+        .catch((err) => {
+          console.warn('[Video Player] Play error:', err);
+          setIsBuffering(false);
+        });
     }
   };
 
@@ -137,8 +186,15 @@ export default function OurSolutionVideoSection({
   const handleSeek = (time: number) => {
     playTactileClick();
     if (!videoRef.current) return;
-    videoRef.current.currentTime = time;
-    setCurrentTime(time);
+    try {
+      videoRef.current.currentTime = time;
+      setCurrentTime(time);
+      if (!isPlaying) {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[Video Player] Seek error:', e);
+    }
   };
 
   const handleTimeUpdate = () => {
@@ -148,11 +204,30 @@ export default function OurSolutionVideoSection({
 
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return;
-    setDuration(videoRef.current.duration || 31);
+    const dur = videoRef.current.duration;
+    if (dur && !isNaN(dur) && isFinite(dur)) {
+      setDuration(dur);
+    }
+    setIsBuffering(false);
+    setHasError(false);
   };
 
   const handleVideoEnded = () => {
-    setIsPlaying(false);
+    // Loop smoothly
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleVideoError = () => {
+    console.warn('[Video Player] Video source failed, trying next mirror');
+    setHasError(true);
+    setIsBuffering(false);
+    // Switch to fallback source automatically
+    const nextIdx = (selectedSourceIdx + 1) % RELIABLE_VIDEO_SOURCES.length;
+    setSelectedSourceIdx(nextIdx);
+    setVideoSrc(RELIABLE_VIDEO_SOURCES[nextIdx].url);
   };
 
   const toggleFullscreen = () => {
@@ -172,13 +247,39 @@ export default function OurSolutionVideoSection({
     if (file) {
       const url = URL.createObjectURL(file);
       setVideoSrc(url);
+      setPlayerMode('direct');
       setIsPlaying(true);
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.play().catch(() => {});
         }
-      }, 200);
+      }, 300);
     }
+  };
+
+  const handleApplyCustomUrl = () => {
+    if (!inputUrl.trim()) return;
+    playTactileClick();
+    if (inputUrl.includes('youtube.com') || inputUrl.includes('youtu.be')) {
+      // Extract YouTube ID
+      let videoId = '';
+      if (inputUrl.includes('youtu.be/')) {
+        videoId = inputUrl.split('youtu.be/')[1]?.split('?')[0] || '';
+      } else if (inputUrl.includes('v=')) {
+        videoId = inputUrl.split('v=')[1]?.split('&')[0] || '';
+      } else if (inputUrl.includes('embed/')) {
+        videoId = inputUrl.split('embed/')[1]?.split('?')[0] || '';
+      }
+      if (videoId) {
+        setCustomEmbedUrl(`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&loop=1`);
+        setPlayerMode('embed');
+      }
+    } else {
+      setVideoSrc(inputUrl.trim());
+      setPlayerMode('direct');
+    }
+    setCustomUrlModal(false);
+    setInputUrl('');
   };
 
   const formatTime = (secs: number) => {
@@ -202,7 +303,7 @@ export default function OurSolutionVideoSection({
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-wider shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Interactive Solution Film</span>
+            <span>Interactive Solution Film & Walkthrough</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight">
@@ -215,6 +316,48 @@ export default function OurSolutionVideoSection({
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
             Watch how Prathmikta transforms emergency response from blind hospital-hopping into a synchronized, live telemetry corridor that saves the Golden Hour.
           </p>
+
+          {/* Player Mode Switcher Tabs */}
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => {
+                playTactileClick();
+                setPlayerMode('direct');
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                playerMode === 'direct'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>HD Video Stream</span>
+            </button>
+            <button
+              onClick={() => {
+                playTactileClick();
+                setPlayerMode('embed');
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                playerMode === 'embed'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Embedded YouTube Player</span>
+            </button>
+            <button
+              onClick={() => {
+                playTactileClick();
+                setCustomUrlModal(true);
+              }}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <Sliders className="w-3 h-3" />
+              <span>Change Video</span>
+            </button>
+          </div>
         </div>
 
         {/* Video Showcase Card */}
@@ -233,7 +376,11 @@ export default function OurSolutionVideoSection({
               <div className="h-4 w-px bg-slate-200" />
               <div className="flex items-center gap-2 font-mono font-semibold text-slate-700">
                 <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
-                <span>PRATHMIKTA_LIVE_SOLUTION_WALKTHROUGH.MP4</span>
+                <span className="truncate max-w-[200px] sm:max-w-xs">
+                  {playerMode === 'embed'
+                    ? 'YOUTUBE_EMERGENCY_TRIAGE_EMBED'
+                    : RELIABLE_VIDEO_SOURCES[selectedSourceIdx]?.title || 'PRATHMIKTA_SOLUTION_WALKTHROUGH.MP4'}
+                </span>
               </div>
             </div>
 
@@ -246,207 +393,199 @@ export default function OurSolutionVideoSection({
 
           {/* Main Video Viewport */}
           <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center overflow-hidden">
-            {videoSrc ? (
-              <video
-                ref={videoRef}
-                src={videoSrc}
-                playsInline
-                muted={isMuted}
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onEnded={handleVideoEnded}
-                className="w-full h-full object-contain"
-                onClick={togglePlay}
-              />
+            {playerMode === 'embed' ? (
+              /* Embedded YouTube / Iframe Player (Fast, smooth, no stuttering) */
+              <div className="w-full h-full relative">
+                <iframe
+                  src={customEmbedUrl}
+                  title="Emergency Triage & Response Solution Video"
+                  className="w-full h-full border-0 absolute inset-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
             ) : (
-              /* Simulation Video Player Screen with High-Impact Stage Preview */
-              <div className="relative w-full h-full flex flex-col justify-between p-6 sm:p-10 bg-gradient-to-br from-slate-950 via-[#0c1222] to-slate-950 text-white">
-                {/* Visual Backdrop Graphic */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center overflow-hidden">
-                  <div className="w-[600px] h-[600px] border border-red-500/30 rounded-full animate-spin [animation-duration:30s]" />
-                  <div className="absolute w-[450px] h-[450px] border border-blue-500/30 rounded-full animate-spin [animation-duration:20s] [animation-direction:reverse]" />
-                </div>
-
-                {/* Top Badge in Viewport */}
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-black uppercase tracking-wider shadow-lg">
-                    <Activity className="w-4 h-4 animate-pulse" />
-                    <span>Live Telemetry Corridor</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-full border border-slate-700 text-slate-300 text-xs font-mono">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>0 Door-to-Treatment Lag</span>
-                  </div>
-                </div>
-
-                {/* Center Dynamic Story Card Based on Active Stage */}
-                <div className="relative z-10 max-w-xl mx-auto text-center space-y-4 my-auto">
-                  <div
-                    className={`inline-flex p-4 rounded-3xl bg-gradient-to-br ${KEY_MOMENTS[activeMomentIndex].color} text-white shadow-xl shadow-red-500/20 transform hover:scale-105 transition-transform`}
-                  >
-                    {React.createElement(KEY_MOMENTS[activeMomentIndex].icon, {
-                      className: 'w-8 h-8 sm:w-10 sm:h-10',
-                    })}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="inline-block px-2.5 py-0.5 rounded-full bg-white/10 text-amber-300 text-xs font-bold font-mono">
-                      {KEY_MOMENTS[activeMomentIndex].badge} • {formatTime(KEY_MOMENTS[activeMomentIndex].time)}
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-white drop-shadow-md">
-                      {KEY_MOMENTS[activeMomentIndex].label}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
-                      {KEY_MOMENTS[activeMomentIndex].desc}
-                    </p>
-                  </div>
-
-                  {/* Quick Stage Steppers */}
-                  <div className="flex items-center justify-center gap-1.5 pt-2">
-                    {KEY_MOMENTS.map((km, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSeek(km.time)}
-                        className={`h-2 rounded-full transition-all cursor-pointer ${
-                          activeMomentIndex === idx
-                            ? 'w-8 bg-red-500'
-                            : 'w-2 bg-slate-700 hover:bg-slate-500'
-                        }`}
-                        title={km.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bottom Video Quick Action Bar */}
-                <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-400 font-bold">108 EMERGENCY SYNC</span>
-                    <span>•</span>
-                    <span>AIIMS &amp; TRAUMA GRID</span>
-                  </div>
-
-                  <label className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-all">
-                    <Upload className="w-3.5 h-3.5 text-red-400" />
-                    <span>Upload Custom Clip</span>
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* Large Floating Play Button if Paused */}
-            {!isPlaying && (
-              <button
-                onClick={togglePlay}
-                className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-2xl shadow-red-600/50 backdrop-blur-sm transition-all hover:scale-110 cursor-pointer z-20 group-hover:opacity-100"
-                aria-label="Play Solution Video"
-              >
-                <Play className="w-8 h-8 fill-white ml-1" />
-              </button>
-            )}
-          </div>
-
-          {/* Custom Controls Scrub Bar (Clean White / Slate Theme) */}
-          <div className="p-4 sm:p-5 bg-white border-t border-slate-200 space-y-3">
-            {/* Progress Bar with Timeline Markers */}
-            <div className="relative">
-              <input
-                type="range"
-                min={0}
-                max={duration}
-                step={0.1}
-                value={currentTime}
-                onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
-              />
-
-              {/* Timeline Moment Markers */}
-              <div className="absolute top-3 left-0 right-0 flex justify-between pointer-events-none px-1">
-                {KEY_MOMENTS.map((km, idx) => {
-                  const leftPercent = (km.time / duration) * 100;
-                  return (
-                    <div
-                      key={idx}
-                      style={{ left: `${leftPercent}%` }}
-                      className="absolute -top-3 transform -translate-x-1/2 flex flex-col items-center"
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full border border-white ${
-                          activeMomentIndex === idx ? 'bg-red-600 scale-125' : 'bg-slate-400'
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Control Buttons & Timestamp */}
-            <div className="flex items-center justify-between gap-4 pt-1">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={togglePlay}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 cursor-pointer transition-colors"
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-slate-800" />}
-                </button>
-
-                <button
-                  onClick={() => handleSeek(0)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 cursor-pointer transition-colors"
-                  title="Replay from start"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={toggleMute}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 cursor-pointer transition-colors"
-                  aria-label={isMuted ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-
-                <div className="font-mono text-xs text-slate-600">
-                  <span className="text-slate-900 font-bold">{formatTime(currentTime)}</span> / {formatTime(duration)}
-                </div>
-              </div>
-
-              {/* Right Side Options */}
-              <div className="flex items-center gap-2">
-                <select
-                  value={playbackSpeed}
-                  onChange={(e) => {
-                    const spd = parseFloat(e.target.value);
-                    setPlaybackSpeed(spd);
-                    if (videoRef.current) videoRef.current.playbackRate = spd;
+              /* High Performance Direct HTML5 Video Player */
+              <div className="w-full h-full relative flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  src={videoSrc}
+                  playsInline
+                  preload="auto"
+                  muted={isMuted}
+                  poster={RELIABLE_VIDEO_SOURCES[selectedSourceIdx]?.poster}
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  onCanPlay={() => setIsBuffering(false)}
+                  onWaiting={() => setIsBuffering(true)}
+                  onPlaying={() => {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
                   }}
-                  className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 font-mono cursor-pointer focus:outline-none"
-                >
-                  <option value={0.75}>0.75x</option>
-                  <option value={1}>1.0x Normal</option>
-                  <option value={1.25}>1.25x</option>
-                  <option value={1.5}>1.5x</option>
-                </select>
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={handleVideoEnded}
+                  onError={handleVideoError}
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={togglePlay}
+                />
 
-                <button
-                  onClick={toggleFullscreen}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer transition-colors"
-                  title="Toggle Fullscreen"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </button>
+                {/* Subtle Overlay Vignette & Hospital Dispatch Brand Stamp */}
+                <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/70 backdrop-blur-md border border-white/10 text-white text-xs font-mono pointer-events-none">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                  <span className="font-bold">LIVE CORRIDOR SYNC</span>
+                  <span className="text-slate-400">|</span>
+                  <span className="text-emerald-400">0s LAG</span>
+                </div>
+
+                {/* Top Right Stage Badge in Viewport */}
+                <div className="absolute top-4 right-4 z-10 hidden sm:flex items-center gap-2 bg-slate-950/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-white text-xs font-mono pointer-events-none">
+                  <Activity className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  <span>{KEY_MOMENTS[activeMomentIndex].badge}</span>
+                </div>
+
+                {/* Loading / Buffering Spinner */}
+                {isBuffering && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs z-20 pointer-events-none">
+                    <RefreshCw className="w-10 h-10 text-red-500 animate-spin mb-2" />
+                    <span className="text-white text-xs font-mono font-bold tracking-wider">
+                      BUFFERING HD STREAM...
+                    </span>
+                  </div>
+                )}
+
+                {/* Large Floating Play Button if Paused */}
+                {!isPlaying && !isBuffering && (
+                  <button
+                    onClick={togglePlay}
+                    className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-red-600/90 hover:bg-red-600 text-white flex items-center justify-center shadow-2xl shadow-red-600/50 backdrop-blur-md transition-all hover:scale-110 cursor-pointer z-20"
+                    aria-label="Play Solution Video"
+                  >
+                    <Play className="w-8 h-8 fill-white ml-1" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Custom Controls Scrub Bar for Direct Video (Clean White / Slate Theme) */}
+          {playerMode === 'direct' && (
+            <div className="p-4 sm:p-5 bg-white border-t border-slate-200 space-y-3">
+              {/* Progress Bar with Timeline Markers */}
+              <div className="relative">
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 15}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                  className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                />
+
+                {/* Timeline Moment Markers */}
+                <div className="absolute top-3.5 left-0 right-0 flex justify-between pointer-events-none px-1">
+                  {KEY_MOMENTS.map((km, idx) => {
+                    const leftPercent = Math.min(100, Math.max(0, (km.time / (duration || 15)) * 100));
+                    return (
+                      <div
+                        key={idx}
+                        style={{ left: `${leftPercent}%` }}
+                        className="absolute -top-3.5 transform -translate-x-1/2 flex flex-col items-center"
+                      >
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full border-2 border-white shadow-xs ${
+                            activeMomentIndex === idx ? 'bg-red-600 scale-125 ring-2 ring-red-300' : 'bg-slate-400'
+                          }`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Control Buttons & Timestamp */}
+              <div className="flex items-center justify-between gap-4 pt-1">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={togglePlay}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 cursor-pointer transition-colors"
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-slate-800" />}
+                  </button>
+
+                  <button
+                    onClick={() => handleSeek(0)}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 cursor-pointer transition-colors"
+                    title="Replay from start"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={toggleMute}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 cursor-pointer transition-colors"
+                    aria-label={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </button>
+
+                  <div className="font-mono text-xs text-slate-600">
+                    <span className="text-slate-900 font-bold">{formatTime(currentTime)}</span> / {formatTime(duration)}
+                  </div>
+                </div>
+
+                {/* Right Side Options & Mirrors */}
+                <div className="flex items-center gap-2">
+                  {/* Select Video Clip */}
+                  <select
+                    value={selectedSourceIdx}
+                    onChange={(e) => {
+                      const idx = parseInt(e.target.value);
+                      setSelectedSourceIdx(idx);
+                      setVideoSrc(RELIABLE_VIDEO_SOURCES[idx].url);
+                      setIsPlaying(true);
+                      setTimeout(() => {
+                        if (videoRef.current) {
+                          videoRef.current.play().catch(() => {});
+                        }
+                      }, 200);
+                    }}
+                    className="hidden md:inline-block bg-slate-100 text-slate-700 text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 cursor-pointer focus:outline-none"
+                  >
+                    {RELIABLE_VIDEO_SOURCES.map((src, i) => (
+                      <option key={i} value={i}>
+                        {src.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={playbackSpeed}
+                    onChange={(e) => {
+                      const spd = parseFloat(e.target.value);
+                      setPlaybackSpeed(spd);
+                      if (videoRef.current) videoRef.current.playbackRate = spd;
+                    }}
+                    className="bg-slate-100 text-slate-800 text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 font-mono cursor-pointer focus:outline-none"
+                  >
+                    <option value={0.75}>0.75x</option>
+                    <option value={1}>1.0x Normal</option>
+                    <option value={1.25}>1.25x</option>
+                    <option value={1.5}>1.5x</option>
+                  </select>
+
+                  <button
+                    onClick={toggleFullscreen}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer transition-colors"
+                    title="Toggle Fullscreen"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 5-Stage Interactive Workflow Cards Below Video */}
@@ -457,7 +596,7 @@ export default function OurSolutionVideoSection({
               <span>5-Step Zero Delay Protocol Breakdown</span>
             </h3>
             <span className="text-xs text-slate-500 font-mono hidden sm:inline">
-              Click any stage to jump timeline
+              Click any stage to seek timeline
             </span>
           </div>
 
@@ -510,7 +649,7 @@ export default function OurSolutionVideoSection({
                         isActive ? 'text-red-600 font-bold' : 'text-slate-500'
                       }
                     >
-                      {isActive ? '● Now Showing' : 'Jump to Scene'}
+                      {isActive ? '● Active Scene' : 'Seek Scene'}
                     </span>
                     <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-red-600' : 'text-slate-400'}`} />
                   </div>
@@ -554,6 +693,63 @@ export default function OurSolutionVideoSection({
           </div>
         </div>
       </div>
+
+      {/* Modal: Custom Video URL or Upload */}
+      {customUrlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-red-600" />
+                <span>Change Solution Video</span>
+              </h3>
+              <button
+                onClick={() => setCustomUrlModal(false)}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Paste a YouTube video link or direct MP4 video URL, or upload a local clip to play in the solution section.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700">Video URL (YouTube or MP4)</label>
+              <input
+                type="text"
+                value={inputUrl}
+                onChange={(e) => setInputUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=... or https://.../video.mp4"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-red-500 font-mono text-slate-800"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={handleApplyCustomUrl}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md"
+              >
+                Apply Video
+              </button>
+              <label className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer transition-all border border-slate-300 text-center flex items-center justify-center gap-1.5">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload File</span>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => {
+                    handleFileUpload(e);
+                    setCustomUrlModal(false);
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

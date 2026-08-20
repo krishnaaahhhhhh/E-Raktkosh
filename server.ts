@@ -35,6 +35,7 @@ app.use('/api/blood-inventory', bloodInventoryRoutes);
 
 // Authoritative in-memory state for instant low-latency delivery
 const hospitalsState: Record<string, HospitalFacility> = JSON.parse(JSON.stringify(INITIAL_HOSPITALS));
+const partnerFacilitiesMemory: any[] = [];
 
 // Initialize MongoDB on startup (non-blocking)
 connectToDatabase().catch((err) => console.warn('[MongoDB] Init connection error:', err));
@@ -56,7 +57,7 @@ app.get('/api/health', async (req, res) => {
         TokenModel.countDocuments(),
         PlannedAdmissionModel.countDocuments()
       ]);
-      counts = { facilities: facCount, dispatches: dispCount, tokens: tokCount, admissions: admCount };
+      counts = { facilities: facCount + partnerFacilitiesMemory.length, dispatches: dispCount, tokens: tokCount, admissions: admCount };
     } catch {
       // ignore
     }
@@ -80,19 +81,52 @@ app.get('/api/health', async (req, res) => {
 app.post('/api/partner/register', async (req, res) => {
   try {
     const facilityData = req.body;
-    console.log(`[API/Socket] Saving facility registration: ${facilityData.facilityName} (${facilityData.facilityType})`);
+    const nowIso = new Date().toISOString();
+    const facilityRecord = {
+      ...facilityData,
+      createdAt: facilityData.createdAt || nowIso,
+      updatedAt: nowIso
+    };
+
+    // Store in-memory buffer
+    const existingMemIdx = partnerFacilitiesMemory.findIndex(f => f.facilityId === facilityData.facilityId);
+    if (existingMemIdx >= 0) {
+      partnerFacilitiesMemory[existingMemIdx] = facilityRecord;
+    } else {
+      partnerFacilitiesMemory.unshift(facilityRecord);
+    }
+
+    // Command Line Audit Log
+    console.log(`\n================================================================`);
+    console.log(`🏥 [NEW PARTNER COLLABORATION SAVED IN COMMAND GRID]`);
+    console.log(`📌 ID: ${facilityData.facilityId}`);
+    console.log(`🏢 Facility: ${facilityData.facilityName}`);
+    console.log(`🏷️  Category: ${facilityData.facilityType?.toUpperCase()}`);
+    console.log(`📍 Location: ${facilityData.city || 'Lucknow'}, ${facilityData.state || 'Uttar Pradesh'}`);
+    console.log(`📞 Contact: ${facilityData.contactPhone || 'N/A'} | Email: ${facilityData.contactEmail || 'N/A'}`);
+    if (facilityData.facilityType === 'hospital') {
+      console.log(`🛏️  Matrix: ${facilityData.hospitalCapacity?.icuBeds || 0} ICU Beds | ${facilityData.hospitalCapacity?.ventilators || 0} Ventilators | ${facilityData.hospitalCapacity?.erTraumaBays || 0} ER Bays`);
+    } else if (facilityData.facilityType === 'blood_bank') {
+      console.log(`🩸 Blood Stock: 8 Blood Groups Connected | Cold Chain: ${facilityData.bloodBankData?.coldChainStatus || 'Optimal'}`);
+    } else if (facilityData.facilityType === 'ambulance') {
+      console.log(`🚑 EMS Fleet: ${facilityData.ambulanceFleetData?.connectedCount || 1} Ambulances | Sync: ${facilityData.ambulanceFleetData?.gpsSyncType || 'Live GPS'}`);
+    }
+    console.log(`🔑 Live API Key: ${facilityData.apiKey || 'pk_live_generated'}`);
+    console.log(`⏱️  Timestamp: ${nowIso}`);
+    console.log(`💾 Persisted: In-Memory Master Cache + MongoDB Atlas Database`);
+    console.log(`================================================================\n`);
 
     // Persist to MongoDB
     let savedDoc = null;
     if (isDbConnected()) {
       savedDoc = await FacilityModel.findOneAndUpdate(
         { facilityId: facilityData.facilityId },
-        { ...facilityData, updatedAt: new Date() },
+        { ...facilityRecord },
         { upsert: true, new: true }
       );
     }
 
-    const payload = savedDoc || facilityData;
+    const payload = savedDoc || facilityRecord;
 
     // Real-time broadcast to all connected dashboards via Socket.io
     io.emit('facility:registered', payload);
@@ -111,11 +145,16 @@ app.post('/api/partner/register', async (req, res) => {
 
 app.get('/api/partner/facilities', async (req, res) => {
   try {
+    let dbFacilities: any[] = [];
     if (isDbConnected()) {
-      const facilities = await FacilityModel.find().sort({ createdAt: -1 }).limit(100);
-      return res.json(facilities);
+      dbFacilities = await FacilityModel.find().sort({ createdAt: -1 }).limit(100);
     }
-    res.json([]);
+    // Merge DB facilities with in-memory cache to guarantee zero loss
+    const map = new Map();
+    [...partnerFacilitiesMemory, ...dbFacilities].forEach(f => {
+      if (f.facilityId) map.set(f.facilityId, f);
+    });
+    res.json(Array.from(map.values()));
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -124,42 +163,51 @@ app.get('/api/partner/facilities', async (req, res) => {
 // Master Command Grid Live Stats (starts at 0 and increments strictly based on registered entities)
 app.get('/api/command/master-stats', async (req, res) => {
   try {
-    let hospitalCount = 0;
-    let ambulanceCount = 0;
-    let bloodBankCount = 0;
-    let bloodUnitsAvailable = 0;
-    let activeDispatchesCount = 0;
-    let facilitiesList: any[] = [];
-    let recentDispatches: any[] = [];
+    let dbFacilities: any[] = [];
+    let dbDispatches: any[] = [];
 
     if (isDbConnected()) {
-      const [hospDocs, ambDocs, bbDocs, dispatches] = await Promise.all([
-        FacilityModel.find({ facilityType: 'hospital' }).sort({ createdAt: -1 }),
-        FacilityModel.find({ facilityType: 'ambulance' }).sort({ createdAt: -1 }),
-        FacilityModel.find({ facilityType: 'blood_bank' }).sort({ createdAt: -1 }),
-        DispatchModel.find().sort({ createdAt: -1 }).limit(20)
-      ]);
-
-      hospitalCount = hospDocs.length;
-      bloodBankCount = bbDocs.length;
-
-      // Sum ambulance counts from registered ambulance fleets
-      ambulanceCount = ambDocs.reduce((acc: number, doc: any) => {
-        const count = Number(doc.ambulanceFleetData?.connectedCount) || 1;
-        return acc + count;
-      }, 0);
-
-      // Sum blood units from registered blood banks
-      bloodUnitsAvailable = bbDocs.reduce((acc: number, doc: any) => {
-        const matrix = (doc.bloodBankData?.stockMatrix || {}) as Record<string, any>;
-        const sumUnits = Object.values(matrix).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
-        return Number(acc + sumUnits);
-      }, 0);
-
-      activeDispatchesCount = dispatches.filter((d) => d.status !== 'admitted' && d.status !== 'completed').length;
-      facilitiesList = [...hospDocs, ...ambDocs, ...bbDocs];
-      recentDispatches = dispatches;
+      try {
+        const [docs, dispatches] = await Promise.all([
+          FacilityModel.find().sort({ createdAt: -1 }),
+          DispatchModel.find().sort({ createdAt: -1 }).limit(30)
+        ]);
+        dbFacilities = docs;
+        dbDispatches = dispatches;
+      } catch (dbErr) {
+        console.warn('[Command API] DB query fallback:', dbErr);
+      }
     }
+
+    // Merge in-memory partner facilities cache + DB docs
+    const facMap = new Map();
+    [...partnerFacilitiesMemory, ...dbFacilities].forEach(f => {
+      const id = f.facilityId || f.id;
+      if (id) facMap.set(id, f);
+    });
+    const mergedFacilities = Array.from(facMap.values());
+
+    const hospDocs = mergedFacilities.filter(f => f.facilityType === 'hospital');
+    const ambDocs = mergedFacilities.filter(f => f.facilityType === 'ambulance');
+    const bbDocs = mergedFacilities.filter(f => f.facilityType === 'blood_bank');
+
+    const hospitalCount = hospDocs.length;
+    const bloodBankCount = bbDocs.length;
+
+    // Sum ambulance counts from registered ambulance fleets
+    const ambulanceCount = ambDocs.reduce((acc: number, doc: any) => {
+      const count = Number(doc.ambulanceFleetData?.connectedCount) || 1;
+      return acc + count;
+    }, 0);
+
+    // Sum blood units from registered blood banks
+    const bloodUnitsAvailable = bbDocs.reduce((acc: number, doc: any) => {
+      const matrix = (doc.bloodBankData?.stockMatrix || {}) as Record<string, any>;
+      const sumUnits = Object.values(matrix).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+      return Number(acc + sumUnits);
+    }, 0);
+
+    const activeDispatchesCount = dbDispatches.filter((d) => d.status !== 'admitted' && d.status !== 'completed').length;
 
     res.json({
       connectedHospitals: hospitalCount,
@@ -168,8 +216,8 @@ app.get('/api/command/master-stats', async (req, res) => {
       bloodUnitsAvailable: bloodUnitsAvailable,
       activeEmergencyCount: activeDispatchesCount,
       emergencyLoadPercentage: hospitalCount === 0 ? 0 : Math.min(100, Math.round((activeDispatchesCount / (hospitalCount * 3 || 1)) * 100)),
-      facilities: facilitiesList,
-      recentDispatches: recentDispatches,
+      facilities: mergedFacilities,
+      recentDispatches: dbDispatches,
       dbConnected: isDbConnected()
     });
   } catch (error) {

@@ -244,7 +244,7 @@ export const PlannedAdmissionBooking: React.FC = () => {
             className="cursor-pointer group flex items-center shrink-0"
             title="Back to Landing Page"
           >
-            <AnimatedHeartbeatLogo size="md" showBadge={true} showWaveformStrip={true} />
+            <AnimatedHeartbeatLogo size="md" />
           </div>
 
           {/* Center: Real Live Auto-Location Pill */}
